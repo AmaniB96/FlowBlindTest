@@ -8,13 +8,37 @@
 
 .header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center; /* Center the round counter */
   align-items: center;
-  padding: 1rem 2rem;
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
+  width: 100%;
   margin-bottom: 2rem;
-  box-shadow: var(--shadow-md);
+  position: relative; /* Needed for absolute positioning of children */
+  text-align: center;
+}
+
+.quitButton {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--background-light);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: var(--transition-normal);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.quitButton:hover {
+  background: var(--background-lighter);
+  border-color: var(--text-primary);
+  color: var(--text-primary);
 }
 
 .gameInfo {
@@ -27,8 +51,19 @@
   color: var(--text-primary);
 }
 
+.roundCounter {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
 .score {
-  color: var(--accent-primary);
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 .timer {

@@ -25,6 +25,10 @@ const useGameStore = create((set, get) => ({
   totalGamesPlayed: 0,
   bestScore: 0,
   averageScore: 0,
+
+  // Artist Grid Cache
+  artistGridData: [],
+  isArtistGridLoaded: false,
   
   // Actions
   setGameState: (state) => set({ gameState: state }),
@@ -49,10 +53,12 @@ const useGameStore = create((set, get) => ({
       set({ gameState: 'game-over' })
     } else {
       set({
+        gameState: 'playing', // <-- This is the crucial fix
         currentRound: currentRound + 1,
         timeLeft: 30,
         userGuess: '',
-        currentSong: null
+        currentSong: null,
+        isPlaying: false,
       })
     }
   },
@@ -70,16 +76,20 @@ const useGameStore = create((set, get) => ({
     let correctSong = false
     let correctArtist = false
     
-    if (gameMode === 'song' || gameMode === 'both') {
-      correctSong = userGuess.toLowerCase().includes(currentSong.title.toLowerCase()) ||
-                   currentSong.title.toLowerCase().includes(userGuess.toLowerCase())
-      if (correctSong) roundScore += gameMode === 'both' ? 5 : 10
-    }
-    
-    if (gameMode === 'artist' || gameMode === 'both') {
-      correctArtist = userGuess.toLowerCase().includes(currentSong.artist.name.toLowerCase()) ||
-                     currentSong.artist.name.toLowerCase().includes(userGuess.toLowerCase())
-      if (correctArtist) roundScore += gameMode === 'both' ? 5 : 10
+    const trimmedGuess = userGuess.trim().toLowerCase();
+
+    if (trimmedGuess) { // <-- This check prevents scoring on empty/skipped guesses
+      if (gameMode === 'song' || gameMode === 'both') {
+        correctSong = currentSong.title.toLowerCase().includes(trimmedGuess) ||
+                     trimmedGuess.includes(currentSong.title.toLowerCase())
+        if (correctSong) roundScore += gameMode === 'both' ? 5 : 10
+      }
+      
+      if (gameMode === 'artist' || gameMode === 'both') {
+        correctArtist = currentSong.artist.name.toLowerCase().includes(trimmedGuess) ||
+                       trimmedGuess.includes(currentSong.artist.name.toLowerCase())
+        if (correctArtist) roundScore += gameMode === 'both' ? 5 : 10
+      }
     }
     
     const result = {
@@ -122,7 +132,10 @@ const useGameStore = create((set, get) => ({
       bestScore: Math.max(bestScore, score),
       averageScore: ((get().averageScore * totalGamesPlayed) + score) / (totalGamesPlayed + 1)
     })
-  }
+  },
+
+  // Action to cache artist grid data
+  setArtistGridData: (data) => set({ artistGridData: data, isArtistGridLoaded: true }),
 }))
 
 export default useGameStore

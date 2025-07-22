@@ -22,7 +22,8 @@ function GamePlay() {
     setUserGuess,
     submitGuess,
     setIsPlaying,
-    nextRound
+    nextRound,
+    resetGame // Add resetGame from the store
   } = useGameStore()
 
   const [songs, setSongs] = useState([])
@@ -37,7 +38,7 @@ function GamePlay() {
   useEffect(() => {
     const fetchSongs = async () => {
       try {
-        setLoading(true)
+        // No need to set loading to true here, it's already the default state
         const response = await fetch(
           `/api/blindtest?category=${selectedCategory}&difficulty=${difficulty}&count=${totalRounds}`
         )
@@ -47,20 +48,20 @@ function GamePlay() {
         }
         
         const data = await response.json()
-        setSongs(data.songs)
-        
-        if (data.songs.length > 0) {
-          setCurrentSong(data.songs[0])
+        if (data.songs && data.songs.length > 0) {
+          setSongs(data.songs)
+        } else {
+          throw new Error('No songs returned from API for this category.')
         }
       } catch (err) {
         setError(err.message)
       } finally {
-        setLoading(false)
+        setLoading(false) // This will now be called correctly
       }
     }
 
     fetchSongs()
-  }, [selectedCategory, difficulty, totalRounds, setCurrentSong])
+  }, []) // The dependency array is now empty, so this runs only once on mount
 
   // Timer countdown
   useEffect(() => {
@@ -79,7 +80,7 @@ function GamePlay() {
     }
   }, [timeLeft, hasStarted, loading])
 
-  // Load next song when round changes
+  // Load next song when round changes or songs are loaded
   useEffect(() => {
     if (songs.length > 0 && currentRound > 0) {
       const songIndex = currentRound - 1
@@ -133,6 +134,19 @@ function GamePlay() {
     submitGuess()
   }
 
+  const handleQuit = () => {
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+    // Clear any pending timer to prevent state updates after unmounting
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+    }
+    // Reset the game state to return to the landing page
+    resetGame()
+  }
+
   const handleSkip = () => {
     handleTimeUp()
   }
@@ -172,6 +186,12 @@ function GamePlay() {
     <div className={styles.container}>
       {/* Header with game info */}
       <div className={styles.header}>
+        <button onClick={handleQuit} className={styles.quitButton}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Quit
+        </button>
         <div className={styles.gameInfo}>
           <span className={styles.round}>Round {currentRound} / {totalRounds}</span>
           <span className={styles.score}>Score: {score}</span>

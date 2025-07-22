@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
-const GENRE_MAPPING = {
+// Standard Deezer Genre IDs
+const DEEZER_GENRE_IDS = {
   'pop': '132',
   'rock': '152',
   'hip-hop': '116',
@@ -11,21 +12,83 @@ const GENRE_MAPPING = {
   'country': '85',
   'reggae': '144',
   'alternative': '85',
-  'afrobeat': 'afrobeat' // Custom handling for Afrobeat
 };
 
+// Map our custom genres to specific Deezer Playlist IDs for much greater variety
+// UPDATED to use globally available playlists to avoid regional restrictions.
+const CUSTOM_GENRE_PLAYLISTS = {
+  'afrobeat': '1440614715',       // Afro Hits (already global)
+  'french-rap': '13154564983',       // "Rap Francais" by Filtr France (more global rights)
+  'uk-rap': '10601632322',       // "UK Rap" by Digster (more global rights)
+  'k-pop': '4096400722',       // K-Pop Daebak (already global)
+  'brazilian-funk': '1111142361', // Funk Hits (already global)
+};
+
+// The difficulty now determines which part of a playlist we sample from
 const DIFFICULTY_MAPPING = {
-  easy: { limit: 50, offset: 0 }, // Popular songs
-  medium: { limit: 30, offset: 50 }, // Less popular
-  hard: { limit: 20, offset: 100 } // Obscure songs
+  easy: { limit: 50, offset: 0 },   // Top 50 tracks
+  medium: { limit: 100, offset: 50 }, // Tracks 50-150
+  hard: { limit: 150, offset: 150 } // Tracks 150-300
 };
 
-// Afrobeat artists for different difficulty levels
-const AFROBEAT_ARTISTS = {
-  easy: ['burna boy', 'wizkid', 'davido', 'tiwa savage', 'ayra starr', 'asake', 'rema', 'fireboy'],
-  medium: ['omah lay', 'joeboy', 'tems', 'oxlade', 'kizz daniel', 'mayorkun', 'zlatan', 'naira marley'],
-  hard: ['blaqbonez', 'alpha p', 'bella shmurda', 'crayon', 'lojay', 'buju', 'magixx', 'boy spyce']
-};
+// Helper function to fetch and process songs from a Deezer API URL
+async function getSongsFromApi(url) {
+  // Use Deezer's JSONP output to bypass CORS issues
+  const jsonpUrl = `${url}${url.includes('?') ? '&' : '?'}output=jsonp&callback=dz`;
+  
+  try {
+    const response = await fetch(jsonpUrl);
+    if (!response.ok) {
+      console.error(`Deezer API error for URL ${jsonpUrl}: ${response.status}`);
+      return [];
+    }
+    
+    let text = await response.text();
+    
+    // Robustly remove the JSONP callback wrapper 'dz(...)' to get the raw JSON
+    const startIndex = text.indexOf('(');
+    const endIndex = text.lastIndexOf(')');
+    if (startIndex === -1 || endIndex === -1) {
+        console.error("Invalid JSONP response:", text);
+        return [];
+    }
+    text = text.substring(startIndex + 1, endIndex);
+
+    const data = JSON.parse(text);
+    
+    // The track list is always in the 'data' property of the response object
+    const tracks = data.data;
+
+    if (!tracks || !Array.isArray(tracks)) {
+      console.warn(`No 'data' array found in JSONP response for URL: ${jsonpUrl}`);
+      return [];
+    }
+
+    return tracks
+      // Filter out any tracks that don't have a preview URL
+      .filter(song => song && song.preview && song.preview !== '' && song.readable)
+      .map(song => ({
+        id: song.id,
+        title: song.title,
+        artist: {
+          id: song.artist.id,
+          name: song.artist.name,
+          picture: song.artist.picture_medium || song.artist.picture
+        },
+        album: {
+          id: song.album.id,
+          title: song.album.title,
+          cover: song.album.cover_medium || song.album.cover
+        },
+        preview: song.preview,
+        duration: song.duration
+      }));
+  } catch (error) {
+    console.error(`Failed to fetch or process JSONP for URL ${jsonpUrl}:`, error);
+    return [];
+  }
+}
+
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -34,143 +97,43 @@ export async function GET(request) {
   const count = parseInt(searchParams.get('count')) || 10;
 
   try {
-    let apiUrl;
+    let songs = [];
     const difficultyConfig = DIFFICULTY_MAPPING[difficulty];
     
-    if (category === 'afrobeat') {
-      // Special handling for Afrobeat
-      const artistsForDifficulty = AFROBEAT_ARTISTS[difficulty] || AFROBEAT_ARTISTS.medium;
-      const randomArtists = artistsForDifficulty
-        .sort(() => Math.random() - 0.5)
-        .slice(0, Math.min(count, artistsForDifficulty.length));
-      
-      // Fetch songs from multiple Afrobeat artists
-      const artistPromises = randomArtists.map(async (artist) => {
-        const response = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(artist)}&limit=5`);
-        if (response.ok) {
-          const data = await response.json();
-          return data.data?.filter(song => song.preview && song.preview !== '') || [];
-        }
-        return [];
-      });
-
-      const artistResults = await Promise.all(artistPromises);
-      const allSongs = artistResults.flat();
-      
-      // Shuffle and select the requested number of songs
-      const shuffledSongs = allSongs
-        .sort(() => Math.random() - 0.5)
-        .slice(0, count)
-        .map(song => ({
-          id: song.id,
-          title: song.title,
-          artist: {
-            id: song.artist.id,
-            name: song.artist.name,
-            picture: song.artist.picture_medium || song.artist.picture
-          },
-          album: {
-            id: song.album.id,
-            title: song.album.title,
-            cover: song.album.cover_medium || song.album.cover
-          },
-          preview: song.preview,
-          duration: song.duration
-        }));
-
-      return NextResponse.json({ 
-        songs: shuffledSongs,
-        category,
-        difficulty,
-        total: shuffledSongs.length 
-      });
-      
-    } else if (category && category !== 'mixed') {
-      // Search by genre
-      const genreId = GENRE_MAPPING[category];
-      if (genreId) {
-        apiUrl = `https://api.deezer.com/genre/${genreId}/artists?limit=${difficultyConfig.limit}&index=${difficultyConfig.offset}`;
-      } else {
-        apiUrl = `https://api.deezer.com/search?q=${encodeURIComponent(category)}&limit=${difficultyConfig.limit}&index=${difficultyConfig.offset}`;
+    // Case 1: Custom genre using a specific playlist
+    if (CUSTOM_GENRE_PLAYLISTS[category]) {
+      const playlistId = CUSTOM_GENRE_PLAYLISTS[category];
+      const apiUrl = `https://api.deezer.com/playlist/${playlistId}/tracks?limit=${difficultyConfig.limit}&index=${difficultyConfig.offset}`;
+      songs = await getSongsFromApi(apiUrl);
+    } 
+    // Case 2: Standard Deezer genre
+    else if (DEEZER_GENRE_IDS[category]) {
+      const genreId = DEEZER_GENRE_IDS[category];
+      const radioUrl = `https://api.deezer.com/genre/${genreId}/radios`;
+      const radios = await getSongsFromApi(radioUrl); // This now correctly returns an array of radio objects
+      if (radios && radios.length > 0) {
+        const tracklistUrl = radios[0].tracklist;
+        songs = await getSongsFromApi(`${tracklistUrl}?limit=${difficultyConfig.limit}&index=${difficultyConfig.offset}`);
       }
-    } else {
-      // Mixed category - search popular artists
-      const popularQueries = ['drake', 'taylor swift', 'weeknd', 'billie eilish', 'post malone', 'ariana grande'];
-      const randomQuery = popularQueries[Math.floor(Math.random() * popularQueries.length)];
-      apiUrl = `https://api.deezer.com/search?q=${randomQuery}&limit=${difficultyConfig.limit}&index=${difficultyConfig.offset}`;
+    }
+    // Case 3: Mixed/Fallback category
+    else {
+      const apiUrl = `https://api.deezer.com/chart/0/tracks?limit=${difficultyConfig.limit}&index=${difficultyConfig.offset}`;
+      songs = await getSongsFromApi(apiUrl);
     }
 
-    const response = await fetch(apiUrl);
-    
-    if (!response.ok) {
-      throw new Error(`Deezer API error: ${response.status}`);
-    }
+    // Shuffle the retrieved songs and slice to the final count
+    const shuffledSongs = songs.sort(() => Math.random() - 0.5).slice(0, count);
 
-    const data = await response.json();
-    let songs = [];
-
-    if (data.data) {
-      // Filter songs that have preview URLs
-      songs = data.data
-        .filter(item => item.preview && item.preview !== '')
-        .slice(0, count)
-        .map(song => ({
-          id: song.id,
-          title: song.title,
-          artist: {
-            id: song.artist.id,
-            name: song.artist.name,
-            picture: song.artist.picture_medium || song.artist.picture
-          },
-          album: {
-            id: song.album.id,
-            title: song.album.title,
-            cover: song.album.cover_medium || song.album.cover
-          },
-          preview: song.preview,
-          duration: song.duration
-        }));
-    }
-
-    // If we don't have enough songs, get more from a backup search
-    if (songs.length < count) {
-      const backupResponse = await fetch(`https://api.deezer.com/chart/0/tracks?limit=${count * 2}`);
-      const backupData = await backupResponse.json();
-      
-      const backupSongs = backupData.data
-        .filter(item => item.preview && item.preview !== '')
-        .slice(0, count - songs.length)
-        .map(song => ({
-          id: song.id,
-          title: song.title,
-          artist: {
-            id: song.artist.id,
-            name: song.artist.name,
-            picture: song.artist.picture_medium || song.artist.picture
-          },
-          album: {
-            id: song.album.id,
-            title: song.album.title,
-            cover: song.album.cover_medium || song.album.cover
-          },
-          preview: song.preview,
-          duration: song.duration
-        }));
-      
-      songs = [...songs, ...backupSongs];
-    }
-
-    // Shuffle the songs array
-    for (let i = songs.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [songs[i], songs[j]] = [songs[j], songs[i]];
+    if (shuffledSongs.length < count && shuffledSongs.length === 0) {
+        console.warn(`Could not fetch any valid songs for category: ${category}. This might be due to regional restrictions or lack of previews in the source playlist.`);
     }
 
     return NextResponse.json({ 
-      songs: songs.slice(0, count),
+      songs: shuffledSongs,
       category,
       difficulty,
-      total: songs.length 
+      total: shuffledSongs.length 
     });
 
   } catch (error) {

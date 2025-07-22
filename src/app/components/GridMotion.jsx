@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import useGameStore from '../store/gameStore'
 import styles from './GridMotion.module.css'
 
 const ARTISTS_BY_ROW = [
@@ -12,12 +13,14 @@ const ARTISTS_BY_ROW = [
 ];
 
 function GridMotion() {
-  const [artistsData, setArtistsData] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { artistGridData, isArtistGridLoaded, setArtistGridData } = useGameStore()
+  const [loading, setLoading] = useState(!isArtistGridLoaded)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     const fetchArtistImages = async () => {
+      if (isArtistGridLoaded) return
+
       try {
         setLoading(true)
         const allArtists = ARTISTS_BY_ROW.flat()
@@ -43,7 +46,8 @@ function GridMotion() {
 
         const results = await Promise.all(artistPromises)
         const validArtists = results.filter(Boolean)
-        setArtistsData(validArtists)
+        // Save the fetched data to the Zustand store
+        setArtistGridData(validArtists)
       } catch (err) {
         setError(err.message)
       } finally {
@@ -52,7 +56,7 @@ function GridMotion() {
     }
 
     fetchArtistImages()
-  }, [])
+  }, [isArtistGridLoaded, setArtistGridData])
 
   if (loading) {
     return (
@@ -73,8 +77,8 @@ function GridMotion() {
   // Group artists back into rows for display
   const rows = []
   const itemsPerRow = 8
-  for (let i = 0; i < artistsData.length; i += itemsPerRow) {
-    rows.push(artistsData.slice(i, i + itemsPerRow))
+  for (let i = 0; i < artistGridData.length; i += itemsPerRow) {
+    rows.push(artistGridData.slice(i, i + itemsPerRow))
   }
 
   return (

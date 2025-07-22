@@ -4,7 +4,7 @@ import useGameStore from '../store/gameStore'
 import styles from './DifficultySelect.module.css'
 
 function DifficultySelect() {
-  const { setGameState, setGameSettings, selectedCategory, difficulty, gameMode } = useGameStore()
+  const { setGameState, setGameSettings, selectedCategory, difficulty, gameMode, startGame } = useGameStore()
 
   const difficulties = [
     {
@@ -60,7 +60,7 @@ function DifficultySelect() {
   }
 
   const handleStartGame = () => {
-    setGameState('playing')
+    startGame() // Use the startGame action to correctly initialize the game state
   }
 
   const handleBack = () => {

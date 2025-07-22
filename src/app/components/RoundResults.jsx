@@ -21,19 +21,6 @@ function RoundResults() {
   const isCorrect = currentResult?.correctSong || currentResult?.correctArtist
   const roundScore = currentResult?.score || 0
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (currentRound < totalRounds) {
-        nextRound()
-      } else {
-        // Game finished
-        nextRound() // This will trigger game-over state
-      }
-    }, 4000) // Show results for 4 seconds
-
-    return () => clearTimeout(timer)
-  }, [currentRound, totalRounds, nextRound])
-
   const getResultMessage = () => {
     if (!currentResult) return ''
 
@@ -145,18 +132,14 @@ function RoundResults() {
           </div>
         </div>
 
-        {/* Next Round Indicator */}
-        <div className={styles.nextRoundIndicator}>
-          {currentRound < totalRounds ? (
-            <p>Next round starting soon...</p>
-          ) : (
-            <p>Calculating final results...</p>
-          )}
-          <div className={styles.loadingDots}>
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
+        {/* Next Round Button */}
+        <div className={styles.actions}>
+          <button className={styles.nextButton} onClick={nextRound}>
+            {currentRound < totalRounds ? 'Next Round' : 'Finish Game'}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
         </div>
       </div>
     </div>

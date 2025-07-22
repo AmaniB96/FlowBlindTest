@@ -9,12 +9,15 @@ function CategorySelect() {
   const categories = [
     { id: 'mixed', name: 'Mixed', icon: '🎵', description: 'Various genres and artists' },
     { id: 'pop', name: 'Pop', icon: '🎤', description: 'Popular mainstream music' },
-    { id: 'hip-hop', name: 'Hip Hop', icon: '🎤', description: 'Rap and hip hop tracks' },
-    { id: 'rock', name: 'Rock', icon: '🎸', description: 'Rock and alternative music' },
-    { id: 'electronic', name: 'Electronic', icon: '🎧', description: 'EDM and electronic beats' },
-    { id: 'r&b', name: 'R&B', icon: '🎹', description: 'Rhythm and blues' },
+    { id: 'hip-hop', name: 'Hip Hop', icon: '🎧', description: 'Global rap and hip hop' },
+    { id: 'french-rap', name: 'French Rap', icon: '🇫🇷', description: 'The best of French rap' },
+    { id: 'uk-rap', name: 'UK Rap', icon: '🇬🇧', description: 'Drill, Grime, and UK Hip Hop' },
+    { id: 'k-pop', name: 'K-Pop', icon: '🇰🇷', description: 'Popular hits from South Korea' },
     { id: 'afrobeat', name: 'Afrobeat', icon: '🥁', description: 'African rhythms and modern beats' },
-    { id: 'jazz', name: 'Jazz', icon: '🎷', description: 'Jazz and smooth sounds' },
+    { id: 'brazilian-funk', name: 'Funk', icon: '🇧🇷', description: 'The sound of Brazilian baile funk' },
+    { id: 'rock', name: 'Rock', icon: '🎸', description: 'Rock and alternative music' },
+    { id: 'electronic', name: 'Electronic', icon: '⚡', description: 'EDM and electronic beats' },
+    { id: 'r&b', name: 'R&B', icon: '🎹', description: 'Rhythm and blues' },
     { id: 'reggae', name: 'Reggae', icon: '🌴', description: 'Reggae and Caribbean vibes' }
   ]
 
