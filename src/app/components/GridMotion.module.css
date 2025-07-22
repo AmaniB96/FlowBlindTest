@@ -1,0 +1,47 @@
+/* GridMotion Component Styles */
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2rem;
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  gap: 1rem;
+  animation-duration: 20s;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+
+.slideLeft {
+  animation-name: slideLeft;
+}
+
+.slideRight {
+  animation-name: slideRight;
+}
+
+.item {
+  min-width: 150px;
+  height: 150px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.message {
+  text-align: center;
+  color: orange;
+  padding: 10px;
+}
+
+@keyframes slideLeft {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes slideRight {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}

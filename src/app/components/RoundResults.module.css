@@ -1,0 +1,259 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--bg-primary);
+}
+
+.resultCard {
+  max-width: 600px;
+  width: 100%;
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  box-shadow: var(--shadow-xl);
+  text-align: center;
+  border: 1px solid var(--border-primary);
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.resultIcon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  animation: scaleIn 0.5s ease-out;
+}
+
+.resultIcon.correct {
+  background: var(--gradient-success);
+  color: white;
+}
+
+.resultIcon.incorrect {
+  background: var(--gradient-warning);
+  color: white;
+}
+
+.resultMessage {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.scoreDisplay {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.songInfo {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+.albumCover {
+  flex-shrink: 0;
+}
+
+.coverImage {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.songDetails {
+  text-align: left;
+  flex: 1;
+}
+
+.songTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.artistName {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin-bottom: 0.25rem;
+}
+
+.albumName {
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.guessSection {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.guessSection h4 {
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.userGuess {
+  font-size: 1.125rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.userGuess em {
+  color: var(--text-muted);
+}
+
+.breakdown {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.breakdownItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.breakdownLabel {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.breakdownStatus {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.breakdownStatus.correct {
+  color: var(--accent-success);
+}
+
+.breakdownStatus.incorrect {
+  color: var(--accent-error);
+}
+
+.progress {
+  margin-bottom: 2rem;
+}
+
+.progressInfo {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--gradient-primary);
+  transition: width 0.5s ease-out;
+  border-radius: var(--radius-sm);
+}
+
+.nextRoundIndicator {
+  color: var(--text-secondary);
+}
+
+.nextRoundIndicator p {
+  margin-bottom: 1rem;
+}
+
+.loadingDots {
+  display: flex;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.loadingDots span {
+  width: 8px;
+  height: 8px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  animation: loadingDot 1.4s ease-in-out infinite both;
+}
+
+.loadingDots span:nth-child(1) { animation-delay: -0.32s; }
+.loadingDots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes loadingDot {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .resultCard {
+    padding: 1.5rem;
+  }
+  
+  .songInfo {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .songDetails {
+    text-align: center;
+  }
+  
+  .coverImage {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .breakdown {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
