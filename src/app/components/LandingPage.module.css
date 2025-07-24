@@ -54,6 +54,7 @@
 .startButton {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
   padding: 1rem 2rem;
   background: var(--gradient-primary);
@@ -72,12 +73,6 @@
 
 .startButton:active {
   transform: translateY(0);
-}
-
-.startButton span {
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 .statsButton {

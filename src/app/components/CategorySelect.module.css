@@ -115,7 +115,35 @@
   }
   
   .categoriesGrid {
-    grid-template-columns: 1fr;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1rem; /* Add a gap for the flex layout */
+  }
+
+  .categoryCard {
+    width: calc(30% - 0.5rem); /* Create a responsive 2-column layout */
+    height: auto; /* Let content define the height */
+    padding: 1rem; /* Reduce padding */
+    min-height: 130px; /* Set a minimum height */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .categoryIcon {
+    font-size: 2rem; /* Smaller icon */
+    margin-bottom: 0.5rem; /* Reduced margin */
+  }
+
+  .categoryName {
+    font-size: 1rem; /* Smaller name */
+    margin-bottom: 0.25rem; /* Reduced margin */
+  }
+
+  .categoryDescription {
+    font-size: 0.8rem; /* Smaller description */
+    line-height: 1.2; /* Improve readability */
   }
   
   .backButton {

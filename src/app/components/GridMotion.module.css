@@ -45,3 +45,11 @@
   from { transform: translateX(-50%); }
   to { transform: translateX(0); }
 }
+
+/* Media Queries */
+@media (max-width: 768px) {
+  /* Hide the 3rd row and any subsequent rows on smaller screens */
+  .row:nth-child(n+3) {
+    display: none;
+  }
+}

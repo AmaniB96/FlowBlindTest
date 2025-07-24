@@ -87,6 +87,12 @@ input, textarea {
   font-family: inherit;
 }
 
+@media (max-width: 768px) {
+  html {
+    font-size: 14px; /* Adjusts base font size for smaller screens */
+  }
+}
+
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 8px;

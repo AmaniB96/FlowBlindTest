@@ -17,6 +17,8 @@
   border: 1px solid var(--border-primary);
   position: relative;
   overflow: hidden;
+  display: flex; /* Use flexbox */
+  flex-direction: column;
 }
 
 .newRecordBanner {
@@ -169,6 +171,10 @@
 
 .detailedResults {
   margin-bottom: 2rem;
+  flex-shrink: 1; /* Allow this section to shrink */
+  overflow: hidden; /* Hide overflow from children */
+  display: flex;
+  flex-direction: column;
 }
 
 .detailedResults h3 {
@@ -178,11 +184,11 @@
 }
 
 .roundsList {
-  max-height: 400px;
-  overflow-y: auto;
+  overflow-y: auto; /* This is the key: makes only this list scrollable */
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  padding-right: 0.5rem; /* Add padding for scrollbar */
 }
 
 .roundItem {
@@ -390,14 +396,34 @@
 @media (max-width: 768px) {
   .container {
     padding: 1rem;
+    align-items: flex-start; /* Align card to top on mobile */
   }
   
   .gameOverCard {
-    padding: 1.5rem;
+    padding: 1rem;
+    height: auto;
+    margin-top: 1rem;
+  }
+
+  .header {
+    margin-bottom: 1.5rem;
+  }
+
+  .title {
+    font-size: 2rem;
   }
   
+  .scoreSection {
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .scoreValue {
+    font-size: 3rem;
+  }
+
   .scoreDetails {
-    gap: 2rem;
+    gap: 1.5rem;
   }
   
   .settingsGrid {
