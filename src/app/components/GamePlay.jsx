@@ -1,9 +1,8 @@
 'use client'
-
-import { useState, useEffect, useRef } from 'react'
-import Image from 'next/image'
-import useGameStore, { normalize, levenshtein } from '../store/gameStore'
+import { useEffect, useState, useRef } from 'react'
+import useGameStore from '../store/gameStore'
 import styles from './GamePlay.module.css'
+import toast from 'react-hot-toast' // <-- Import toast
 
 function GamePlay() {
   const {
@@ -37,6 +36,7 @@ function GamePlay() {
 
   // Fetch songs for the game
   useEffect(() => {
+    // No need for the gameType check anymore! This component is now only for solo.
     const fetchUniqueSongs = async () => {
       try {
         // Fetch more songs than needed to have a buffer for filtering
@@ -70,6 +70,7 @@ function GamePlay() {
 
       } catch (err) {
         setError(err.message)
+        toast.error("Error: Failed to fetch songs. Please try again.") // <-- Replaced alert
       } finally {
         setLoading(false)
       }

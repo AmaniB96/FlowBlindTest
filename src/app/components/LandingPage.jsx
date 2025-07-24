@@ -7,11 +7,17 @@ import GridMotion from './GridMotion'
 import styles from './LandingPage.module.css'
 
 function LandingPage() {
-  const { setGameState, totalGamesPlayed, bestScore } = useGameStore()
+  const { setGameState, setGameType, totalGamesPlayed, bestScore } = useGameStore()
   const [showStats, setShowStats] = useState(false)
 
-  const handleStartGame = () => {
-    setGameState('category-select')
+  const handleStartSolo = () => {
+    setGameType('solo');
+    setGameState('category-select');
+  }
+
+  const handleStartMultiplayer = () => {
+    setGameType('multiplayer');
+    setGameState('multiplayer-home'); // A new game state
   }
 
   return (
@@ -39,11 +45,11 @@ function LandingPage() {
       </div>
 
       <div className={styles.actions}>
-        <button className={styles.startButton} onClick={handleStartGame}>
-          <span>Start Game</span>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M8 5v14l11-7L8 5z" fill="currentColor"/>
-          </svg>
+        <button className={styles.startButton} onClick={handleStartSolo}>
+          <span>Play Solo</span>
+        </button>
+        <button className={styles.startButton} onClick={handleStartMultiplayer}>
+          <span>Multiplayer</span>
         </button>
         
         {totalGamesPlayed > 0 && (

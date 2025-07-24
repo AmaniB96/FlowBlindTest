@@ -1,5 +1,7 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware' // <-- Import persist
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { io } from 'socket.io-client'
+import toast from 'react-hot-toast' // <-- Import toast
 
 function normalize(str) {
   return str
@@ -33,7 +35,7 @@ function levenshtein(a, b) {
 }
 
 const useGameStore = create(
-  persist( // <-- Wrap your store definition
+  persist(
     (set, get) => ({
       // --- Game State (will NOT be persisted) ---
       gameState: 'landing', // 'landing', 'category-select', 'difficulty-select', 'playing', 'results', 'game-over'
@@ -54,6 +56,12 @@ const useGameStore = create(
       bestScore: 0,
       averageScore: 0,
 
+      // --- NEW MULTIPLAYER STATE ---
+      gameType: 'solo', // 'solo' or 'multiplayer'
+      roomId: null,
+      players: [], // e.g., [{ id, username, score }]
+      socket: null, // To hold the socket instance
+
       // --- Actions ---
       setGameState: (state) => set({ gameState: state }),
       
@@ -63,13 +71,13 @@ const useGameStore = create(
         gameMode
       }),
       
-      startGame: () => set({
+      // This is for starting a SOLO game
+      startSoloGame: () => set({
         gameState: 'playing',
         currentRound: 1,
         score: 0,
         roundResults: [],
         timeLeft: 30
-        // Note: playedSongIds is NOT reset here to prevent repeats across games
       }),
       
       nextRound: () => {
@@ -180,10 +188,182 @@ const useGameStore = create(
 
       // Action to cache artist grid data
       setArtistGridData: (data) => set({ artistGridData: data, isArtistGridLoaded: true }),
+
+      // --- NEW MULTIPLAYER ACTIONS ---
+      setGameType: (type) => set({ gameType: type }),
+      
+      initializeSocket: () => {
+        const { socket } = get();
+        if (socket && socket.connected) return socket;
+
+        // Disconnect any existing socket before creating a new one
+        if (socket) {
+          socket.disconnect();
+        }
+
+        const newSocket = io("http://localhost:3001");
+        
+        newSocket.on('connect', () => {
+          console.log('Connected to WebSocket server with ID:', newSocket.id);
+        });
+
+        newSocket.on('playerJoined', ({ players }) => {
+          set({ players });
+        });
+
+        // --- ADD THIS NEW LISTENER ---
+        // Listens for settings updates broadcasted by the server
+        newSocket.on('settingsUpdated', ({ category, difficulty }) => {
+          console.log('Received settings update from host:', { category, difficulty });
+          set({ selectedCategory: category, difficulty });
+        });
+
+        // --- ADD THIS NEW LISTENER ---
+        newSocket.on('startNextRound', () => {
+          console.log('Received startNextRound from server.');
+          get().nextRound(); // This will advance the round and set the new song
+          set({ gameState: 'playing' }); // Transition back to the gameplay screen
+        });
+
+        newSocket.on('gameStarted', ({ songs }) => {
+          // This is where you would sync the game start for all players
+          console.log('Game starting with songs:', songs);
+          // Set the full game state needed to begin playing
+          set({ 
+            gameState: 'playing',
+            roundResults: [], // Clear previous results
+            currentRound: 1,
+            score: 0,
+            timeLeft: 30,
+            // The server sends the whole song list, we start with the first one
+            currentSong: songs[0], 
+            // You might want to store the full list for subsequent rounds
+            multiplayerSongList: songs 
+          });
+        });
+
+        newSocket.on('roundOver', ({ winnerId, guess, time }) => {
+          // This is where you handle the round end for all players
+          console.log(`Round over. Winner is ${winnerId}`);
+          set({ gameState: 'results' });
+        });
+
+        newSocket.on('playerLeft', () => {
+          toast.error('Your opponent has disconnected. The game has ended.'); // <-- Replaced alert
+          get().resetGame();
+        });
+
+        set({ socket: newSocket });
+        return newSocket;
+      },
+
+      // --- ADD THIS NEW ACTION ---
+      setMultiplayerSettings: ({ category, difficulty }) => {
+        const { socket, roomId, selectedCategory, difficulty: currentDifficulty } = get();
+        
+        const newCategory = category !== undefined ? category : selectedCategory;
+        const newDifficulty = difficulty !== undefined ? difficulty : currentDifficulty;
+
+        // Update local state immediately for the host
+        set({ selectedCategory: newCategory, difficulty: newDifficulty });
+
+        // Tell the server about the change so it can notify the other player
+        if (socket && roomId) {
+          socket.emit('settingsChanged', { roomId, category: newCategory, difficulty: newDifficulty });
+        }
+      },
+
+      createRoom: () => {
+        const socket = get().initializeSocket();
+        const username = `Player1`; // Or get from user input
+        socket.emit('createRoom', (newRoomId) => {
+          set({ 
+            roomId: newRoomId, 
+            gameState: 'lobby', 
+            players: [{ id: socket.id, username }] 
+          });
+        });
+      },
+
+      joinRoom: (roomId, callback) => {
+        const socket = get().initializeSocket();
+        const username = `Player2`; // Or get from user input
+        socket.emit('joinRoom', { roomId, username }, (response) => {
+          if (response.status === 'ok') {
+            set({ roomId, players: response.players, gameState: 'lobby' });
+          }
+          if (callback) callback(response);
+        });
+      },
+
+      // This is for starting a MULTIPLAYER game from the lobby
+      startMultiplayerGame: async () => {
+        const { roomId, socket, selectedCategory, difficulty } = get();
+        
+        const category = selectedCategory;
+        const diff = difficulty;
+
+        if (!category || !diff) {
+            toast.error("Please select a category and difficulty before starting."); // <-- Replaced alert
+            return;
+        }
+        
+        try {
+          const response = await fetch(`/api/blindtest?category=${category}&difficulty=${diff}&count=10`);
+          const data = await response.json();
+
+          if (!response.ok || !data.songs) {
+            throw new Error('Failed to fetch songs from API.');
+          }
+          
+          socket.emit('startGame', { roomId, songs: data.songs });
+        } catch (error) {
+          console.error("Error starting multiplayer game:", error);
+          toast.error("Error: Could not start the game. Please try again."); // <-- Replaced alert
+        }
+      },
+
+      // --- ADD THIS NEW ACTION ---
+      signalReadyForNextRound: () => {
+        const { socket, roomId } = get();
+        if (socket && roomId) {
+          // Tell the server this client is ready
+          socket.emit('playerReady', { roomId });
+          // Put the local client into a waiting state
+          set({ gameState: 'waiting-for-opponent' });
+        }
+      },
+
+      nextRound: () => {
+        const { currentRound, totalRounds, gameType, multiplayerSongList } = get();
+
+        if (currentRound >= totalRounds) {
+          get().updateUserProgress();
+          set({ gameState: 'game-over' });
+          return;
+        }
+
+        // --- MODIFY for MULTIPLAYER ---
+        if (gameType === 'multiplayer') {
+          const nextRoundNumber = currentRound + 1;
+          const nextSong = multiplayerSongList[nextRoundNumber - 1];
+          set({
+            currentRound: nextRoundNumber,
+            currentSong: nextSong,
+            userGuess: '',
+            timeLeft: 30,
+          });
+        } else {
+          // Existing solo logic
+          // ...
+        }
+      },
+      
+      // ... (rest of the store) ...
     }),
     {
-      name: 'flowblindtest-storage', // Name for the localStorage item
-      storage: createJSONStorage(() => localStorage), // Specify localStorage
+      name: 'flowblindtest-storage',
+      storage: createJSONStorage(() => localStorage),
       // Only persist the properties you want to save
       partialize: (state) => ({
         artistGridData: state.artistGridData,

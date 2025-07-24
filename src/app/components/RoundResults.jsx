@@ -14,7 +14,8 @@ function RoundResults() {
     currentSong,
     userGuess,
     gameMode,
-    nextRound
+    nextRound,
+    signalReadyForNextRound
   } = useGameStore()
 
   const currentResult = roundResults[roundResults.length - 1]
@@ -49,6 +50,11 @@ function RoundResults() {
     if (roundScore === 0) return 'var(--accent-error)'
     if (roundScore >= 10) return 'var(--accent-success)'
     return 'var(--accent-warning)'
+  }
+
+  const handleNext = () => {
+    // This now tells the server we are ready and puts us in a waiting state.
+    signalReadyForNextRound()
   }
 
   return (
@@ -134,7 +140,7 @@ function RoundResults() {
 
         {/* Next Round Button */}
         <div className={styles.actions}>
-          <button className={styles.nextButton} onClick={nextRound}>
+          <button className={styles.nextButton} onClick={handleNext}>
             {currentRound < totalRounds ? 'Next Round' : 'Finish Game'}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="9 18 15 12 9 6"></polyline>

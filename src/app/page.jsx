@@ -6,14 +6,18 @@ import LandingPage from './components/LandingPage'
 import CategorySelect from './components/CategorySelect'
 import DifficultySelect from './components/DifficultySelect'
 import GamePlay from './components/GamePlay'
+import GamePlayMultiplayer from './components/GamePlayMultiplayer'
 import RoundResults from './components/RoundResults'
 import GameOver from './components/GameOver'
 import Loading from './components/Loading'
+import MultiplayerHome from './components/MultiplayerHome'
+import Lobby from './components/Lobby'
+import JoinGame from './components/JoinGame'
 import styles from './page.module.css'
 
 
 function Page() {
-  const { gameState } = useGameStore()
+  const { gameState, gameType } = useGameStore()
   const [isLoading, setIsLoading] = useState(false)
 
   const renderCurrentView = () => {
@@ -27,11 +31,19 @@ function Page() {
       case 'difficulty-select':
         return <DifficultySelect />
       case 'playing':
-        return <GamePlay />
+        return gameType === 'multiplayer' ? <GamePlayMultiplayer /> : <GamePlay />
       case 'results':
         return <RoundResults />
+      case 'waiting-for-opponent':
+        return <Loading message="Waiting for opponent..." />
       case 'game-over':
         return <GameOver />
+      case 'multiplayer-home':
+        return <MultiplayerHome />
+      case 'lobby':
+        return <Lobby />
+      case 'join-game':
+        return <JoinGame />
       default:
         return <LandingPage />
     }
