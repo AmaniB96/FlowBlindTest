@@ -1,7 +1,10 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { io } from 'socket.io-client'
-import toast from 'react-hot-toast' // <-- Import toast
+import toast from 'react-hot-toast'
+
+// Use the environment variable for the server URL
+const SOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:3001';
 
 function normalize(str) {
   return str
@@ -196,15 +199,15 @@ const useGameStore = create(
         const { socket } = get();
         if (socket && socket.connected) return socket;
 
-        // Disconnect any existing socket before creating a new one
         if (socket) {
           socket.disconnect();
         }
 
-        const newSocket = io("http://localhost:3001");
+        // Connect to the correct URL (local or production)
+        const newSocket = io(SOCKET_URL);
         
         newSocket.on('connect', () => {
-          console.log('Connected to WebSocket server with ID:', newSocket.id);
+          console.log(`Connected to WebSocket server at ${SOCKET_URL} with ID:`, newSocket.id);
         });
 
         newSocket.on('playerJoined', ({ players }) => {

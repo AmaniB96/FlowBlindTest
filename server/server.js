@@ -8,9 +8,23 @@ app.use(cors()); // Enable CORS for all routes
 
 const server = http.createServer(app);
 
+// Allow connections from your Vercel app
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://flow-blind-test.vercel.app/" // <-- IMPORTANT: Replace with your actual Vercel URL
+];
+
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000", // Allow your Next.js app to connect
+    origin: function (origin, callback) {
+      // allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) === -1) {
+        var msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
     methods: ["GET", "POST"]
   }
 });
