@@ -1,163 +1,5 @@
 import { create } from 'zustand'
-
-const useGameStore = create((set, get) => ({
-  // Game State
-  gameState: 'landing', // 'landing', 'category-select', 'difficulty-select', 'playing', 'results', 'game-over'
-  currentRound: 0,
-  totalRounds: 10,
-  score: 0,
-  timeLeft: 30,
-  currentSong: null,
-  userGuess: '',
-  roundResults: [],
-  gameResults: null,
-  playedSongIds: new Set(), // <-- Add state to track played song IDs
-  
-  // Game Settings
-  selectedCategory: null,
-  difficulty: 'medium', // 'easy', 'medium', 'hard'
-  gameMode: 'both', // 'song', 'artist', 'both'
-  
-  // Audio State
-  isPlaying: false,
-  audioElement: null,
-  
-  // User Progress
-  totalGamesPlayed: 0,
-  bestScore: 0,
-  averageScore: 0,
-
-  // Artist Grid Cache
-  artistGridData: [],
-  isArtistGridLoaded: false,
-  
-  // Actions
-  setGameState: (state) => set({ gameState: state }),
-  
-  setGameSettings: (category, difficulty, gameMode) => set({
-    selectedCategory: category,
-    difficulty,
-    gameMode
-  }),
-  
-  startGame: () => set({
-    gameState: 'playing',
-    currentRound: 1,
-    score: 0,
-    roundResults: [],
-    timeLeft: 30
-    // Note: playedSongIds is NOT reset here to prevent repeats across games
-  }),
-  
-  nextRound: () => {
-    const { currentRound, totalRounds } = get()
-    if (currentRound >= totalRounds) {
-      set({ gameState: 'game-over' })
-    } else {
-      set({
-        gameState: 'playing', // <-- This is the crucial fix
-        currentRound: currentRound + 1,
-        timeLeft: 30,
-        userGuess: '',
-        currentSong: null,
-        isPlaying: false,
-      })
-    }
-  },
-  
-  setCurrentSong: (song) => {
-    if (song) {
-      // Add the new song's ID to the set of played songs for this session
-      const { playedSongIds } = get();
-      const newPlayedSongIds = new Set(playedSongIds).add(song.id);
-      set({ currentSong: song, playedSongIds: newPlayedSongIds });
-    } else {
-      set({ currentSong: null });
-    }
-  },
-  
-  setUserGuess: (guess) => set({ userGuess: guess }),
-  
-  setTimeLeft: (time) => set({ timeLeft: time }),
-  
-  submitGuess: () => {
-    const { userGuess, currentSong, gameMode, roundResults, score } = get()
-
-    if (!currentSong) return
-
-    const guess = normalize(userGuess)
-    const songTitle = normalize(currentSong.title)
-    const artistName = normalize(currentSong.artist.name)
-    const typoThreshold = (answer) => answer.length <= 6 ? 2 : 3
-
-    let roundScore = 0
-    let correctSong = false
-    let correctArtist = false
-
-    if (gameMode === 'both') {
-      if (levenshtein(guess, songTitle) <= typoThreshold(songTitle)) {
-        roundScore += 5
-        correctSong = true
-      }
-      if (levenshtein(guess, artistName) <= typoThreshold(artistName)) {
-        roundScore += 5
-        correctArtist = true
-      }
-    } else if (gameMode === 'song') {
-      if (levenshtein(guess, songTitle) <= typoThreshold(songTitle) || guess.includes(songTitle)) {
-        roundScore += 10
-        correctSong = true
-      }
-    } else if (gameMode === 'artist') {
-      if (levenshtein(guess, artistName) <= typoThreshold(artistName) || guess.includes(artistName)) {
-        roundScore += 10
-        correctArtist = true
-      }
-    }
-
-    set({
-      // Add the boolean flags to the results object
-      roundResults: [...roundResults, { 
-        userGuess, 
-        currentSong, 
-        score: roundScore, // Use 'score' to match RoundResults.jsx
-        correctSong, 
-        correctArtist 
-      }],
-      score: score + roundScore,
-      gameState: 'results'
-    })
-  },
-  
-  setAudioElement: (audio) => set({ audioElement: audio }),
-  
-  setIsPlaying: (playing) => set({ isPlaying: playing }),
-  
-  resetGame: () => set({
-    gameState: 'landing',
-    currentRound: 0,
-    score: 0,
-    timeLeft: 30,
-    currentSong: null,
-    userGuess: '',
-    roundResults: [],
-    gameResults: null,
-    isPlaying: false,
-    playedSongIds: new Set() // <-- Reset played songs for a new session
-  }),
-  
-  updateUserProgress: () => {
-    const { score, totalGamesPlayed, bestScore } = get()
-    set({
-      totalGamesPlayed: totalGamesPlayed + 1,
-      bestScore: Math.max(bestScore, score),
-      averageScore: ((get().averageScore * totalGamesPlayed) + score) / (totalGamesPlayed + 1)
-    })
-  },
-
-  // Action to cache artist grid data
-  setArtistGridData: (data) => set({ artistGridData: data, isArtistGridLoaded: true }),
-}))
+import { persist, createJSONStorage } from 'zustand/middleware' // <-- Import persist
 
 function normalize(str) {
   return str
@@ -189,6 +31,170 @@ function levenshtein(a, b) {
   }
   return matrix[b.length][a.length];
 }
+
+const useGameStore = create(
+  persist( // <-- Wrap your store definition
+    (set, get) => ({
+      // --- Game State (will NOT be persisted) ---
+      gameState: 'landing', // 'landing', 'category-select', 'difficulty-select', 'playing', 'results', 'game-over'
+      currentRound: 0,
+      totalRounds: 10,
+      score: 0,
+      timeLeft: 30,
+      currentSong: null,
+      userGuess: '',
+      roundResults: [],
+      gameResults: null,
+      playedSongIds: new Set(), // <-- Add state to track played song IDs
+      
+      // --- Persisted State (will be saved in localStorage) ---
+      artistGridData: [],
+      isArtistGridLoaded: false,
+      totalGamesPlayed: 0,
+      bestScore: 0,
+      averageScore: 0,
+
+      // --- Actions ---
+      setGameState: (state) => set({ gameState: state }),
+      
+      setGameSettings: (category, difficulty, gameMode) => set({
+        selectedCategory: category,
+        difficulty,
+        gameMode
+      }),
+      
+      startGame: () => set({
+        gameState: 'playing',
+        currentRound: 1,
+        score: 0,
+        roundResults: [],
+        timeLeft: 30
+        // Note: playedSongIds is NOT reset here to prevent repeats across games
+      }),
+      
+      nextRound: () => {
+        const { currentRound, totalRounds } = get()
+        if (currentRound >= totalRounds) {
+          set({ gameState: 'game-over' })
+        } else {
+          set({
+            gameState: 'playing', // <-- This is the crucial fix
+            currentRound: currentRound + 1,
+            timeLeft: 30,
+            userGuess: '',
+            currentSong: null,
+            isPlaying: false,
+          })
+        }
+      },
+      
+      setCurrentSong: (song) => {
+        if (song) {
+          // Add the new song's ID to the set of played songs for this session
+          const { playedSongIds } = get();
+          const newPlayedSongIds = new Set(playedSongIds).add(song.id);
+          set({ currentSong: song, playedSongIds: newPlayedSongIds });
+        } else {
+          set({ currentSong: null });
+        }
+      },
+      
+      setUserGuess: (guess) => set({ userGuess: guess }),
+      
+      setTimeLeft: (time) => set({ timeLeft: time }),
+      
+      submitGuess: () => {
+        const { userGuess, currentSong, gameMode, roundResults, score } = get()
+
+        if (!currentSong) return
+
+        const guess = normalize(userGuess)
+        const songTitle = normalize(currentSong.title)
+        const artistName = normalize(currentSong.artist.name)
+        const typoThreshold = (answer) => answer.length <= 6 ? 2 : 3
+
+        let roundScore = 0
+        let correctSong = false
+        let correctArtist = false
+
+        if (gameMode === 'both') {
+          if (levenshtein(guess, songTitle) <= typoThreshold(songTitle)) {
+            roundScore += 5
+            correctSong = true
+          }
+          if (levenshtein(guess, artistName) <= typoThreshold(artistName)) {
+            roundScore += 5
+            correctArtist = true
+          }
+        } else if (gameMode === 'song') {
+          if (levenshtein(guess, songTitle) <= typoThreshold(songTitle) || guess.includes(songTitle)) {
+            roundScore += 10
+            correctSong = true
+          }
+        } else if (gameMode === 'artist') {
+          if (levenshtein(guess, artistName) <= typoThreshold(artistName) || guess.includes(artistName)) {
+            roundScore += 10
+            correctArtist = true
+          }
+        }
+
+        set({
+          // Add the boolean flags to the results object
+          roundResults: [...roundResults, { 
+            userGuess, 
+            currentSong, 
+            score: roundScore, // Use 'score' to match RoundResults.jsx
+            correctSong, 
+            correctArtist 
+          }],
+          score: score + roundScore,
+          gameState: 'results'
+        })
+      },
+      
+      setAudioElement: (audio) => set({ audioElement: audio }),
+      
+      setIsPlaying: (playing) => set({ isPlaying: playing }),
+      
+      resetGame: () => set({
+        gameState: 'landing',
+        currentRound: 0,
+        score: 0,
+        timeLeft: 30,
+        currentSong: null,
+        userGuess: '',
+        roundResults: [],
+        gameResults: null,
+        isPlaying: false,
+        playedSongIds: new Set() // <-- Reset played songs for a new session
+      }),
+      
+      updateUserProgress: () => {
+        const { score, totalGamesPlayed, bestScore } = get()
+        set({
+          totalGamesPlayed: totalGamesPlayed + 1,
+          bestScore: Math.max(bestScore, score),
+          averageScore: ((get().averageScore * totalGamesPlayed) + score) / (totalGamesPlayed + 1)
+        })
+      },
+
+      // Action to cache artist grid data
+      setArtistGridData: (data) => set({ artistGridData: data, isArtistGridLoaded: true }),
+    }),
+    {
+      name: 'flowblindtest-storage', // Name for the localStorage item
+      storage: createJSONStorage(() => localStorage), // Specify localStorage
+      // Only persist the properties you want to save
+      partialize: (state) => ({
+        artistGridData: state.artistGridData,
+        isArtistGridLoaded: state.isArtistGridLoaded,
+        totalGamesPlayed: state.totalGamesPlayed,
+        bestScore: state.bestScore,
+        averageScore: state.averageScore,
+      }),
+    }
+  )
+)
 
 export { normalize, levenshtein }
 export default useGameStore
