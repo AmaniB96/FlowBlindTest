@@ -11,7 +11,7 @@ const server = http.createServer(app);
 // Allow connections from your Vercel app
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://flow-blind-test.vercel.app/" // <-- IMPORTANT: Replace with your actual Vercel URL
+  "https://flow-blind-test.vercel.app" // <-- IMPORTANT: Replace with your actual Vercel URL
 ];
 
 const io = new Server(server, {
