@@ -149,7 +149,8 @@ function GameOver() {
               {roundResults.map((result, index) => (
                 <div key={index} className={styles.roundItem}>
                   <div className={styles.roundHeader}>
-                    <span className={styles.roundNumber}>Round {result.round}</span>
+                    {/* FIX: The round number should come from the index or a saved property */}
+                    <span className={styles.roundNumber}>Round {index + 1}</span>
                     <span 
                       className={styles.roundScore}
                       style={{ 
@@ -162,16 +163,17 @@ function GameOver() {
                   
                   <div className={styles.roundContent}>
                     <div className={styles.songInfo}>
+                      {/* FIX: Change result.song to result.currentSong */}
                       <Image
-                        src={result.song.album.cover}
-                        alt={result.song.album.title}
+                        src={result.currentSong.album.cover}
+                        alt={result.currentSong.album.title}
                         width={40}
                         height={40}
                         className={styles.miniCover}
                       />
                       <div className={styles.songText}>
-                        <span className={styles.songTitle}>{result.song.title}</span>
-                        <span className={styles.artistName}>{result.song.artist.name}</span>
+                        <span className={styles.songTitle}>{result.currentSong.title}</span>
+                        <span className={styles.artistName}>{result.currentSong.artist.name}</span>
                       </div>
                     </div>
                     
