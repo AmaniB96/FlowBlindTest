@@ -74,6 +74,12 @@
   transform: translateY(0);
 }
 
+.startButton span {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .statsButton {
   padding: 1rem 1.5rem;
   background: var(--bg-card);
