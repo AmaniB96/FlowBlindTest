@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import useGameStore from '../store/gameStore'
+import useGameStore, { normalize, levenshtein } from '../store/gameStore'
 import styles from './GamePlay.module.css'
 
 function GamePlay() {
@@ -17,13 +17,14 @@ function GamePlay() {
     difficulty,
     gameMode,
     isPlaying,
+    playedSongIds, // <-- Get the set of played songs
     setTimeLeft,
     setCurrentSong,
     setUserGuess,
     submitGuess,
     setIsPlaying,
     nextRound,
-    resetGame // Add resetGame from the store
+    resetGame
   } = useGameStore()
 
   const [songs, setSongs] = useState([])
@@ -36,11 +37,12 @@ function GamePlay() {
 
   // Fetch songs for the game
   useEffect(() => {
-    const fetchSongs = async () => {
+    const fetchUniqueSongs = async () => {
       try {
-        // No need to set loading to true here, it's already the default state
+        // Fetch more songs than needed to have a buffer for filtering
+        const songsToFetch = totalRounds + 20;
         const response = await fetch(
-          `/api/blindtest?category=${selectedCategory}&difficulty=${difficulty}&count=${totalRounds}`
+          `/api/blindtest?category=${selectedCategory}&difficulty=${difficulty}&count=${songsToFetch}`
         )
         
         if (!response.ok) {
@@ -48,20 +50,33 @@ function GamePlay() {
         }
         
         const data = await response.json()
-        if (data.songs && data.songs.length > 0) {
-          setSongs(data.songs)
-        } else {
+        if (!data.songs || data.songs.length === 0) {
           throw new Error('No songs returned from API for this category.')
         }
+
+        // Filter out songs that have already been played in this session
+        const availableSongs = data.songs.filter(song => !playedSongIds.has(song.id));
+
+        if (availableSongs.length < totalRounds) {
+          // This can happen if the user plays many games in the same category
+          // and exhausts the playlist.
+          setError('Not enough unique songs available for a new game. Please try another category or reset the session.');
+          setLoading(false);
+          return;
+        }
+
+        // Take the required number of unique songs for the game
+        setSongs(availableSongs.slice(0, totalRounds));
+
       } catch (err) {
         setError(err.message)
       } finally {
-        setLoading(false) // This will now be called correctly
+        setLoading(false)
       }
     }
 
-    fetchSongs()
-  }, []) // The dependency array is now empty, so this runs only once on mount
+    fetchUniqueSongs()
+  }, []) // This effect should only run once when the game starts
 
   // Timer countdown
   useEffect(() => {
@@ -164,6 +179,8 @@ function GamePlay() {
     }
   }
 
+  // --- FIX: Move all rendering logic after the guards ---
+
   if (loading) {
     return (
       <div className={styles.loadingContainer}>
@@ -181,6 +198,27 @@ function GamePlay() {
       </div>
     )
   }
+
+  // --- FIX: Add a guard to ensure currentSong is loaded before proceeding ---
+  if (!currentSong) {
+    return (
+      <div className={styles.loadingContainer}>
+        <div className={styles.loadingSpinner}></div>
+        <p>Loading round...</p>
+      </div>
+    );
+  }
+
+  // This logic is now SAFE because we know currentSong exists.
+  const typoThreshold = (answer) => answer.length <= 6 ? 2 : 3;
+  const guess = normalize(userGuess);
+  const artistName = normalize(currentSong.artist.name);
+  const songTitle = normalize(currentSong.title);
+
+  const isCorrect = (
+    levenshtein(guess, artistName) <= typoThreshold(artistName) ||
+    guess.includes(artistName)
+  );
 
   return (
     <div className={styles.container}>

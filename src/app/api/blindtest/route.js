@@ -19,7 +19,7 @@ const DEEZER_GENRE_IDS = {
 const CUSTOM_GENRE_PLAYLISTS = {
   'afrobeat': '1440614715',       // Afro Hits (already global)
   'french-rap': '13154564983',       // "Rap Francais" by Filtr France (more global rights)
-  'uk-rap': '10601632322',       // "UK Rap" by Digster (more global rights)
+  'uk-rap': '14010886941',       // "UK Rap" by Digster (more global rights)
   'k-pop': '4096400722',       // K-Pop Daebak (already global)
   'brazilian-funk': '1111142361', // Funk Hits (already global)
 };
@@ -89,6 +89,17 @@ async function getSongsFromApi(url) {
   }
 }
 
+// Helper to get playlist total tracks
+async function getPlaylistTrackCount(playlistId) {
+  const url = `https://api.deezer.com/playlist/${playlistId}?output=jsonp&callback=dz`;
+  const response = await fetch(url, { cache: 'no-store' });
+  const text = await response.text();
+  const startIndex = text.indexOf('(');
+  const endIndex = text.lastIndexOf(')');
+  if (startIndex === -1 || endIndex === -1) return 0;
+  const data = JSON.parse(text.substring(startIndex + 1, endIndex));
+  return data.nb_tracks || 0;
+}
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -103,17 +114,38 @@ export async function GET(request) {
     // Case 1: Custom genre using a specific playlist
     if (CUSTOM_GENRE_PLAYLISTS[category]) {
       const playlistId = CUSTOM_GENRE_PLAYLISTS[category];
-      const apiUrl = `https://api.deezer.com/playlist/${playlistId}/tracks?limit=${difficultyConfig.limit}&index=${difficultyConfig.offset}`;
+      let { limit, offset } = DIFFICULTY_MAPPING[difficulty];
+
+      // --- Fix for hard mode and short playlists ---
+      const totalTracks = await getPlaylistTrackCount(playlistId);
+      if (offset >= totalTracks) {
+        // If offset is too high, start as close to the end as possible
+        offset = Math.max(0, totalTracks - limit);
+      }
+      if (offset < 0) offset = 0;
+      if (offset + limit > totalTracks) {
+        limit = Math.max(0, totalTracks - offset);
+      }
+      // ---------------------------------------------
+
+      const apiUrl = `https://api.deezer.com/playlist/${playlistId}/tracks?limit=${limit}&index=${offset}`;
       songs = await getSongsFromApi(apiUrl);
     } 
     // Case 2: Standard Deezer genre
     else if (DEEZER_GENRE_IDS[category]) {
       const genreId = DEEZER_GENRE_IDS[category];
-      const radioUrl = `https://api.deezer.com/genre/${genreId}/radios`;
-      const radios = await getSongsFromApi(radioUrl); // This now correctly returns an array of radio objects
-      if (radios && radios.length > 0) {
-        const tracklistUrl = radios[0].tracklist;
-        songs = await getSongsFromApi(`${tracklistUrl}?limit=${difficultyConfig.limit}&index=${difficultyConfig.offset}`);
+      // Fetch radios for the genre (not using getSongsFromApi!)
+      const radioUrl = `https://api.deezer.com/genre/${genreId}/radios?output=jsonp&callback=dz`;
+      const response = await fetch(radioUrl, { cache: 'no-store' });
+      const text = await response.text();
+      const startIndex = text.indexOf('(');
+      const endIndex = text.lastIndexOf(')');
+      if (startIndex !== -1 && endIndex !== -1) {
+        const data = JSON.parse(text.substring(startIndex + 1, endIndex));
+        if (data.data && data.data.length > 0) {
+          const tracklistUrl = data.data[0].tracklist;
+          songs = await getSongsFromApi(`${tracklistUrl}?limit=${difficultyConfig.limit}&index=${difficultyConfig.offset}`);
+        }
       }
     }
     // Case 3: Mixed/Fallback category

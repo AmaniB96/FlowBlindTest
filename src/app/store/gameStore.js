@@ -11,6 +11,7 @@ const useGameStore = create((set, get) => ({
   userGuess: '',
   roundResults: [],
   gameResults: null,
+  playedSongIds: new Set(), // <-- Add state to track played song IDs
   
   // Game Settings
   selectedCategory: null,
@@ -45,6 +46,7 @@ const useGameStore = create((set, get) => ({
     score: 0,
     roundResults: [],
     timeLeft: 30
+    // Note: playedSongIds is NOT reset here to prevent repeats across games
   }),
   
   nextRound: () => {
@@ -63,7 +65,16 @@ const useGameStore = create((set, get) => ({
     }
   },
   
-  setCurrentSong: (song) => set({ currentSong: song }),
+  setCurrentSong: (song) => {
+    if (song) {
+      // Add the new song's ID to the set of played songs for this session
+      const { playedSongIds } = get();
+      const newPlayedSongIds = new Set(playedSongIds).add(song.id);
+      set({ currentSong: song, playedSongIds: newPlayedSongIds });
+    } else {
+      set({ currentSong: null });
+    }
+  },
   
   setUserGuess: (guess) => set({ userGuess: guess }),
   
@@ -71,39 +82,48 @@ const useGameStore = create((set, get) => ({
   
   submitGuess: () => {
     const { userGuess, currentSong, gameMode, roundResults, score } = get()
-    
+
+    if (!currentSong) return
+
+    const guess = normalize(userGuess)
+    const songTitle = normalize(currentSong.title)
+    const artistName = normalize(currentSong.artist.name)
+    const typoThreshold = (answer) => answer.length <= 6 ? 2 : 3
+
     let roundScore = 0
     let correctSong = false
     let correctArtist = false
-    
-    const trimmedGuess = userGuess.trim().toLowerCase();
 
-    if (trimmedGuess) { // <-- This check prevents scoring on empty/skipped guesses
-      if (gameMode === 'song' || gameMode === 'both') {
-        correctSong = currentSong.title.toLowerCase().includes(trimmedGuess) ||
-                     trimmedGuess.includes(currentSong.title.toLowerCase())
-        if (correctSong) roundScore += gameMode === 'both' ? 5 : 10
+    if (gameMode === 'both') {
+      if (levenshtein(guess, songTitle) <= typoThreshold(songTitle)) {
+        roundScore += 5
+        correctSong = true
       }
-      
-      if (gameMode === 'artist' || gameMode === 'both') {
-        correctArtist = currentSong.artist.name.toLowerCase().includes(trimmedGuess) ||
-                       trimmedGuess.includes(currentSong.artist.name.toLowerCase())
-        if (correctArtist) roundScore += gameMode === 'both' ? 5 : 10
+      if (levenshtein(guess, artistName) <= typoThreshold(artistName)) {
+        roundScore += 5
+        correctArtist = true
+      }
+    } else if (gameMode === 'song') {
+      if (levenshtein(guess, songTitle) <= typoThreshold(songTitle) || guess.includes(songTitle)) {
+        roundScore += 10
+        correctSong = true
+      }
+    } else if (gameMode === 'artist') {
+      if (levenshtein(guess, artistName) <= typoThreshold(artistName) || guess.includes(artistName)) {
+        roundScore += 10
+        correctArtist = true
       }
     }
-    
-    const result = {
-      round: get().currentRound,
-      song: currentSong,
-      userGuess,
-      correctSong,
-      correctArtist,
-      score: roundScore,
-      timeLeft: get().timeLeft
-    }
-    
+
     set({
-      roundResults: [...roundResults, result],
+      // Add the boolean flags to the results object
+      roundResults: [...roundResults, { 
+        userGuess, 
+        currentSong, 
+        score: roundScore, // Use 'score' to match RoundResults.jsx
+        correctSong, 
+        correctArtist 
+      }],
       score: score + roundScore,
       gameState: 'results'
     })
@@ -122,7 +142,8 @@ const useGameStore = create((set, get) => ({
     userGuess: '',
     roundResults: [],
     gameResults: null,
-    isPlaying: false
+    isPlaying: false,
+    playedSongIds: new Set() // <-- Reset played songs for a new session
   }),
   
   updateUserProgress: () => {
@@ -138,4 +159,36 @@ const useGameStore = create((set, get) => ({
   setArtistGridData: (data) => set({ artistGridData: data, isArtistGridLoaded: true }),
 }))
 
+function normalize(str) {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9 ]/g, '') // Remove special chars
+    .trim();
+}
+
+function levenshtein(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+export { normalize, levenshtein }
 export default useGameStore
