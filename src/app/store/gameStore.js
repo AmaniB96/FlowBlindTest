@@ -69,6 +69,9 @@ const useGameStore = create(
       // --- NEW STATE to track if user has guessed
       hasGuessedThisRound: false, 
 
+      // --- ADD THIS NEW STATE ---
+      isReadyForGameStart: false, // <-- ADD THIS
+
       // --- Actions ---
       setGameState: (state) => set({ gameState: state }),
       

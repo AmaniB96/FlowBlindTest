@@ -14,6 +14,7 @@ import Loading from './components/Loading'
 import MultiplayerHome from './components/MultiplayerHome'
 import Lobby from './components/Lobby'
 import JoinGame from './components/JoinGame'
+import GameStarting from './components/GameStarting'
 import styles from './page.module.css'
 
 
@@ -31,12 +32,17 @@ function Page() {
         return <CategorySelect />
       case 'difficulty-select':
         return <DifficultySelect />
+      case 'starting':
+        return (
+          <>
+            <Lobby />
+            <GameStarting />
+          </>
+        )
       case 'playing':
         return gameType === 'multiplayer' ? <GamePlayMultiplayer /> : <GamePlay />
       case 'results':
         return <RoundResults />
-      case 'waiting-for-opponent':
-        return <Loading message="Waiting for opponent..." />
       case 'game-over':
         return gameType === 'multiplayer' ? <GameOverMultiplayer /> : <GameOver />
       case 'multiplayer-home':
