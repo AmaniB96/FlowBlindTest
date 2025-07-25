@@ -93,22 +93,6 @@ const useGameStore = create(
         timeLeft: 30
       }),
       
-      nextRound: () => {
-        const { currentRound, totalRounds } = get()
-        if (currentRound >= totalRounds) {
-          set({ gameState: 'game-over' })
-        } else {
-          set({
-            gameState: 'playing', // <-- This is the crucial fix
-            currentRound: currentRound + 1,
-            timeLeft: 30,
-            userGuess: '',
-            currentSong: null,
-            isPlaying: false,
-          })
-        }
-      },
-      
       setCurrentSong: (song) => {
         if (song) {
           // Add the new song's ID to the set of played songs for this session
@@ -392,10 +376,11 @@ const useGameStore = create(
       signalReadyForNextRound: () => {
         const { socket, roomId } = get();
         if (socket && roomId) {
-          // Tell the server this client is ready
+          // Tell the server this client is ready for the next round
           socket.emit('playerReady', { roomId });
-          // Put the local client into a waiting state
-          set({ gameState: 'waiting-for-opponent' });
+          // --- THE FIX: Put the client into a generic waiting state ---
+          // Do NOT set gameState to 'playing' here.
+          set({ gameState: 'waiting-for-opponent' }); 
         }
       },
 

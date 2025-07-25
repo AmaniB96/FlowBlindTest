@@ -43,6 +43,8 @@ function Page() {
         return gameType === 'multiplayer' ? <GamePlayMultiplayer /> : <GamePlay />
       case 'results':
         return <RoundResults />
+      case 'waiting-for-opponent':
+        return <Loading message="Waiting for opponent..." />
       case 'game-over':
         return gameType === 'multiplayer' ? <GameOverMultiplayer /> : <GameOver />
       case 'multiplayer-home':
