@@ -31,6 +31,37 @@ const io = new Server(server, {
 
 const rooms = {};
 
+function normalize(str) {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9 ]/g, '') // Remove special chars
+    .trim();
+}
+
+function levenshtein(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
 io.on('connection', (socket) => {
   console.log(`User Connected: ${socket.id}`);
 
@@ -66,68 +97,36 @@ io.on('connection', (socket) => {
   socket.on('startGame', ({ roomId, songs }) => {
     io.to(roomId).emit('gameStarted', { songs });
     if (rooms[roomId]) {
+      // Reset scores and initialize round tracking
+      rooms[roomId].players.forEach(p => p.score = 0);
       rooms[roomId].guessed = new Set();
       rooms[roomId].currentRound = 1;
-      rooms[roomId].totalRounds = songs.length; // or 10 if you always want 10 rounds
+      rooms[roomId].totalRounds = songs.length;
     }
     console.log(`Game started in room ${roomId}`);
   });
 
-  // Add these helper functions at the top of your file:
-  function normalize(str) {
-    return str
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove accents
-      .replace(/[^a-z0-9 ]/g, '') // Remove special chars
-      .trim();
-  }
-
-  function levenshtein(a, b) {
-    if (a.length === 0) return b.length;
-    if (b.length === 0) return a.length;
-    const matrix = [];
-    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-    for (let i = 1; i <= b.length; i++) {
-      for (let j = 1; j <= a.length; j++) {
-        if (b.charAt(i - 1) === a.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
-          );
-        }
-      }
-    }
-    return matrix[b.length][a.length];
-  }
-
-  // Replace your submitGuess handler with:
+  // --- REVISED SUBMIT GUESS LOGIC ---
   socket.on('submitGuess', ({ roomId, guess, song, playerTime, gameMode = 'both' }) => {
-    if (!song || !guess || !rooms[roomId]) return;
+    const room = rooms[roomId];
+    if (!song || !guess || !room || room.guessed.has(socket.id)) {
+      return; // Ignore if room doesn't exist or player already guessed
+    }
 
-    // --- scoring logic as before ---
+    // Mark this player as having guessed for this round
+    room.guessed.add(socket.id);
+
+    // --- Scoring logic (remains the same) ---
     const typoThreshold = (answer) => answer.length <= 6 ? 2 : 3;
     const userGuess = normalize(guess);
     const artistName = normalize(song.artist?.name || '');
     const songTitle = normalize(song.title || '');
-
     let roundScore = 0;
     let correctSong = false;
     let correctArtist = false;
-
     if (gameMode === 'both') {
-      if (levenshtein(userGuess, songTitle) <= typoThreshold(songTitle)) {
-        roundScore += 5;
-        correctSong = true;
-      }
-      if (levenshtein(userGuess, artistName) <= typoThreshold(artistName)) {
-        roundScore += 5;
-        correctArtist = true;
-      }
+      if (levenshtein(userGuess, songTitle) <= typoThreshold(songTitle)) { roundScore += 5; correctSong = true; }
+      if (levenshtein(userGuess, artistName) <= typoThreshold(artistName)) { roundScore += 5; correctArtist = true; }
     } else if (gameMode === 'song') {
       if (levenshtein(userGuess, songTitle) <= typoThreshold(songTitle) || userGuess.includes(songTitle)) {
         roundScore += 10;
@@ -140,71 +139,59 @@ io.on('connection', (socket) => {
       }
     }
 
-    // --- NEW LOGIC: Track guesses ---
-    if (!rooms[roomId].guessed) {
-      rooms[roomId].guessed = new Set();
-    }
-    rooms[roomId].guessed.add(socket.id);
-
-    // If correct, end round for all
+    // --- State Update Logic ---
     if (roundScore > 0) {
-      rooms[roomId].ready.clear();
+      // CORRECT GUESS: Update score and end round for everyone
+      const player = room.players.find(p => p.id === socket.id);
+      if (player) {
+        player.score += roundScore;
+      }
+
       io.to(roomId).emit('roundOver', {
         winnerId: socket.id,
         guess,
-        time: playerTime,
         correctSong,
         correctArtist,
-        score: roundScore
+        players: room.players // Send updated player list with new scores
       });
-      // Reset guessed set for next round
-      rooms[roomId].guessed.clear();
-      return;
-    }
+      room.ready.clear(); // Prepare for next round's ready check
+    } else {
+      // WRONG GUESS: Notify only the player who guessed
+      socket.emit('guessResult', { wasCorrect: false });
 
-    // If all players have guessed and no one was correct, end round (no winner)
-    if (rooms[roomId].guessed.size === rooms[roomId].players.length) {
-      rooms[roomId].ready.clear();
-      io.to(roomId).emit('roundOver', {
-        winnerId: null,
-        guess,
-        time: playerTime,
-        correctSong: false,
-        correctArtist: false,
-        score: 0
-      });
-      rooms[roomId].guessed.clear();
-      return;
+      // If all players have guessed wrong, end the round
+      if (room.guessed.size === room.players.length) {
+        io.to(roomId).emit('roundOver', {
+          winnerId: null,
+          guess: "No one guessed correctly",
+          players: room.players // Send unchanged player list
+        });
+        room.ready.clear();
+      }
     }
-
-    // If guess was wrong and not all players have guessed, do nothing (let the other player try)
-    // Optionally, you can emit a "guessResult" event to just the player who guessed, if you want feedback
-    socket.emit('guessResult', { correctSong: false, correctArtist: false, score: 0 });
   });
 
-  // --- ADD THIS NEW EVENT HANDLER ---
+  // --- REVISED PLAYER READY LOGIC ---
   socket.on('playerReady', ({ roomId }) => {
-    if (!rooms[roomId]) return;
+    const room = rooms[roomId];
+    if (!room) return;
 
-    console.log(`Player ${socket.id} is ready in room ${roomId}`);
-    rooms[roomId].ready.add(socket.id);
+    room.ready.add(socket.id);
 
-    if (rooms[roomId].ready.size === rooms[roomId].players.length) {
-      // All players are ready for the next round
-      const room = rooms[roomId];
+    if (room.ready.size === room.players.length) {
+      // All players are ready
       if (room.currentRound >= room.totalRounds) {
-        // Game over!
-        io.to(roomId).emit('gameOver', {
-          players: room.players
-        });
-        delete rooms[roomId]; // Clean up room
-        console.log(`Game over in room ${roomId}`);
+        // GAME OVER
+        io.to(roomId).emit('gameOver', { players: room.players });
+        delete rooms[roomId];
       } else {
-        // Next round
-        room.currentRound += 1;
-        io.to(roomId).emit('startNextRound');
+        // NEXT ROUND
+        room.currentRound++;
+        room.guessed.clear(); // Clear guessed set for the new round
+        io.to(roomId).emit('startNextRound', {
+          round: room.currentRound
+        });
         room.ready.clear();
-        console.log(`Starting round ${room.currentRound} in room ${roomId}`);
       }
     }
   });

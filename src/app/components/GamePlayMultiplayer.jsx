@@ -16,7 +16,8 @@ function GamePlayMultiplayer() {
     socket,
     setUserGuess,
     submitMultiplayerGuess,
-    resetGame
+    resetGame,
+    hasGuessedThisRound, // <-- Get the new state
   } = useGameStore()
 
   const audioRef = useRef(null)
@@ -37,9 +38,9 @@ function GamePlayMultiplayer() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (userGuess.trim()) {
+    if (userGuess.trim() && !hasGuessedThisRound) { // Check the lock
       submitMultiplayerGuess()
-      setUserGuess('') // Clear input after submitting
+      // Don't clear the input here, let the user see what they guessed
     }
   }
 
@@ -82,9 +83,9 @@ function GamePlayMultiplayer() {
                 onChange={(e) => setUserGuess(e.target.value)}
                 placeholder="Guess the song or artist"
                 className={styles.guessInput}
-                disabled={timeLeft === 0}
+                disabled={timeLeft === 0 || hasGuessedThisRound} // <-- DISABLE on guess
               />
-              <button type="submit" className={styles.submitButton}>
+              <button type="submit" className={styles.submitButton} disabled={timeLeft === 0 || hasGuessedThisRound}>
                 Submit
               </button>
             </div>

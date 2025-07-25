@@ -66,6 +66,9 @@ const useGameStore = create(
       socket: null, // To hold the socket instance
       username: '',
       
+      // --- NEW STATE to track if user has guessed
+      hasGuessedThisRound: false, 
+
       // --- Actions ---
       setGameState: (state) => set({ gameState: state }),
       
@@ -222,11 +225,49 @@ const useGameStore = create(
           set({ selectedCategory: category, difficulty });
         });
 
-        // --- ADD THIS NEW LISTENER ---
-        newSocket.on('startNextRound', () => {
-          console.log('Received startNextRound from server.');
-          get().nextRound(); // This will advance the round and set the new song
-          set({ gameState: 'playing' }); // Transition back to the gameplay screen
+        // --- REVISED roundOver LISTENER ---
+        newSocket.on('roundOver', ({ winnerId, guess, correctSong, correctArtist, players }) => {
+          // The server is the source of truth for scores.
+          // We just update our local state to match.
+          set(state => ({
+            players: players, // Update the entire player list
+            roundResults: [
+              ...state.roundResults,
+              {
+                userGuess: guess,
+                currentSong: state.currentSong,
+                // Score for this round is derived, not added directly
+                score: players.find(p => p.id === winnerId)?.score - (state.players.find(p => p.id === winnerId)?.score || 0),
+                correctSong: !!correctSong,
+                correctArtist: !!correctArtist,
+              }
+            ],
+            gameState: 'results'
+          }));
+        });
+
+        // --- NEW guessResult LISTENER ---
+        newSocket.on('guessResult', ({ wasCorrect }) => {
+          if (!wasCorrect) {
+            set({ hasGuessedThisRound: true }); // Lock input on wrong guess
+            toast.error("Incorrect. Waiting for opponent...");
+          }
+        });
+
+        // --- REVISED startNextRound LISTENER ---
+        newSocket.on('startNextRound', ({ round }) => {
+          const { gameType, multiplayerSongList } = get();
+          if (gameType === 'multiplayer') {
+            const nextSong = multiplayerSongList[round - 1];
+            set({
+              gameState: 'playing',
+              currentRound: round,
+              currentSong: nextSong,
+              userGuess: '',
+              timeLeft: 30,
+              hasGuessedThisRound: false, // <-- Reset guess lock for new round
+            });
+          }
         });
 
         newSocket.on('gameStarted', ({ songs }) => {
@@ -244,24 +285,6 @@ const useGameStore = create(
             // You might want to store the full list for subsequent rounds
             multiplayerSongList: songs 
           });
-        });
-
-        newSocket.on('roundOver', ({ winnerId, guess, time, correctSong, correctArtist, score }) => {
-          // Add to roundResults, update score, etc.
-          set(state => ({
-            roundResults: [
-              ...state.roundResults,
-              {
-                userGuess: guess,
-                currentSong: state.currentSong,
-                score: score || 0,
-                correctSong: !!correctSong,
-                correctArtist: !!correctArtist,
-              }
-            ],
-            score: (state.score || 0) + (score || 0),
-            gameState: 'results'
-          }));
         });
 
         newSocket.on('playerLeft', () => {
