@@ -209,6 +209,21 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('setUsername', ({ username }) => {
+    // Find the room this socket is in
+    const roomId = Object.keys(rooms).find(rid =>
+      rooms[rid].players.some(p => p.id === socket.id)
+    );
+    if (roomId) {
+      const player = rooms[roomId].players.find(p => p.id === socket.id);
+      if (player) {
+        player.username = username;
+        // Notify all clients in the room
+        io.to(roomId).emit('playersUpdated', { players: rooms[roomId].players });
+      }
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log(`User Disconnected: ${socket.id}`);
     // Find which room the user was in and notify the other player

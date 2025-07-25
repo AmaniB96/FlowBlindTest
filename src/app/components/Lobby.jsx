@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import useGameStore from '../store/gameStore'
 import styles from './Multiplayer.module.css'
 import { categories, difficulties } from '../config/gameConfig'
@@ -19,6 +19,7 @@ function Lobby() {
     setUsername
   } = useGameStore();
 
+  const [pendingUsername, setPendingUsername] = useState(username || '');
   const usernameInputRef = useRef();
 
   // Optionally focus input on mount
@@ -27,6 +28,17 @@ function Lobby() {
       usernameInputRef.current.focus();
     }
   }, [username]);
+
+  // Submit username to backend and update store
+  const handleUsernameSubmit = (e) => {
+    e.preventDefault();
+    if (!pendingUsername.trim()) return;
+    setUsername(pendingUsername.trim());
+    if (socket && socket.connected) {
+      socket.emit('setUsername', { username: pendingUsername.trim() });
+    }
+    toast.success('Username updated!');
+  };
 
   const isHost = players.length > 0 && socket?.id === players[0].id
 
@@ -59,19 +71,26 @@ function Lobby() {
       <h1 className={styles.title}>Lobby</h1>
 
       {/* --- USERNAME INPUT --- */}
-      <div className={styles.usernameSection}>
+      <form className={styles.usernameSection} onSubmit={handleUsernameSubmit}>
         <label htmlFor="username">Your Username:</label>
         <input
           id="username"
           ref={usernameInputRef}
           type="text"
-          value={username}
+          value={pendingUsername}
           maxLength={20}
-          onChange={e => setUsername(e.target.value)}
+          onChange={e => setPendingUsername(e.target.value)}
           className={styles.usernameInput}
           placeholder="Enter your name"
         />
-      </div>
+        <button
+          type="submit"
+          className={styles.usernameSubmitButton}
+          disabled={!pendingUsername.trim() || pendingUsername === username}
+        >
+          Set Username
+        </button>
+      </form>
       {/* --- END USERNAME INPUT --- */}
 
       <div className={styles.roomCodeContainer}>

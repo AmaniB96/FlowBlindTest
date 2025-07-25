@@ -277,6 +277,11 @@ const useGameStore = create(
           });
         });
 
+        // --- ADD THIS NEW LISTENER ---
+        newSocket.on('playersUpdated', ({ players }) => {
+          set({ players });
+        });
+
         set({ socket: newSocket });
         return newSocket;
       },
