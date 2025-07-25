@@ -72,6 +72,9 @@ const useGameStore = create(
       // --- ADD THIS NEW STATE ---
       isReadyForGameStart: false, // <-- ADD THIS
 
+      // --- NEW STATE to track who is ready
+      readyPlayers: [], // <-- ADD THIS to track who is ready
+
       // --- Actions ---
       setGameState: (state) => set({ gameState: state }),
       
@@ -198,11 +201,10 @@ const useGameStore = create(
 
       // --- ADD THIS ACTION ---
       playerAcknowledgeStart: () => {
-        set({ 
-          isReadyForGameStart: true,
-          gameState: 'playing', // This transitions the game to the play screen
-          timeLeft: 30,
-        });
+        const { socket, roomId } = get();
+        if (socket) {
+          socket.emit('playerReadyForStart', { roomId });
+        }
       },
 
       // Action to cache artist grid data
@@ -302,6 +304,18 @@ const useGameStore = create(
 
         newSocket.on('playersUpdated', ({ players }) => {
           set({ players });
+        });
+
+        // --- ADD THIS LISTENER ---
+        // Updates the UI to show who has clicked "Ready"
+        newSocket.on('readyPlayersUpdated', ({ readyPlayerIds }) => {
+          set({ readyPlayers: readyPlayerIds });
+        });
+
+        // --- ADD THIS LISTENER ---
+        // The server gives the final command to start the first round
+        newSocket.on('startFirstRound', () => {
+          set({ gameState: 'playing', timeLeft: 30 });
         });
 
         set({ socket: newSocket });

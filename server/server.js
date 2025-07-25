@@ -198,6 +198,26 @@ io.on('connection', (socket) => {
     }
   });
 
+  // This handler is for the "I'm Ready!" button on the starting screen
+  socket.on('playerReadyForStart', ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+
+    room.ready.add(socket.id);
+
+    // Let everyone in the room know who is ready
+    io.to(roomId).emit('readyPlayersUpdated', { 
+      readyPlayerIds: Array.from(room.ready) 
+    });
+
+    // Check if all players in the room are now ready
+    if (room.ready.size === room.players.length) {
+      // Everyone is ready, let's start the first round!
+      io.to(roomId).emit('startFirstRound');
+      room.ready.clear(); // Clear the set for the next round's ready check
+    }
+  });
+
   socket.on('setUsername', ({ username }) => {
     // Find the room this socket is in
     const roomId = Object.keys(rooms).find(rid =>
