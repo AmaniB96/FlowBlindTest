@@ -109,19 +109,22 @@
 }
 
 .selectInput {
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-primary);
-  background: var(--bg-input);
-  color: var(--text-primary);
+  background: #fff;         /* White background for high contrast */
+  color: #222;              /* Dark text for readability */
+  border: 1px solid #888;   /* Subtle border */
+  border-radius: 4px;
+  padding: 8px 12px;
   font-size: 1rem;
-  min-width: 180px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  outline: none;
+  transition: border 0.2s;
 }
 
 .selectInput:disabled {
-  background: var(--bg-card);
+  background: #f0f0f0;      /* Light grey for disabled state */
+  color: #aaa;              /* Lighter text for disabled */
   cursor: not-allowed;
-  opacity: 0.7;
 }
 
 /* Lobby Specific */

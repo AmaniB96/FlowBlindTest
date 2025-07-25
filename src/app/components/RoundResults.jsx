@@ -102,8 +102,7 @@ function RoundResults() {
         <div className={styles.guessSection}>
           <h4>Your guess:</h4>
           <p className={styles.userGuess}>
-            {userGuess || <em>No guess submitted</em>}
-          </p>
+          {currentResult?.userGuess || <em>No guess submitted</em>}</p>
         </div>
 
         {/* Correct Answers Breakdown (for 'both' mode) */}

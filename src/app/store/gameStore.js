@@ -64,7 +64,8 @@ const useGameStore = create(
       roomId: null,
       players: [], // e.g., [{ id, username, score }]
       socket: null, // To hold the socket instance
-
+      username: '',
+      
       // --- Actions ---
       setGameState: (state) => set({ gameState: state }),
       
@@ -268,6 +269,14 @@ const useGameStore = create(
           get().resetGame();
         });
 
+        // --- ADD THIS NEW LISTENER ---
+        newSocket.on('gameOver', (data) => {
+          set({
+            gameState: 'game-over',
+            gameResults: data,
+          });
+        });
+
         set({ socket: newSocket });
         return newSocket;
       },
@@ -386,6 +395,7 @@ const useGameStore = create(
         set({ userGuess: '' }); // Clear input after submitting
       },
       
+      setUsername: (username) => set({ username }),
       // ... (rest of the store) ...
     }),
     {

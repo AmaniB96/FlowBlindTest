@@ -1,4 +1,5 @@
 'use client'
+import { useEffect, useRef } from 'react';
 import useGameStore from '../store/gameStore'
 import styles from './Multiplayer.module.css'
 import { categories, difficulties } from '../config/gameConfig'
@@ -13,8 +14,19 @@ function Lobby() {
     setGameState,
     selectedCategory,
     difficulty,
-    setMultiplayerSettings
-  } = useGameStore()
+    setMultiplayerSettings,
+    username,
+    setUsername
+  } = useGameStore();
+
+  const usernameInputRef = useRef();
+
+  // Optionally focus input on mount
+  useEffect(() => {
+    if (usernameInputRef.current && !username) {
+      usernameInputRef.current.focus();
+    }
+  }, [username]);
 
   const isHost = players.length > 0 && socket?.id === players[0].id
 
@@ -45,7 +57,23 @@ function Lobby() {
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>Lobby</h1>
-      
+
+      {/* --- USERNAME INPUT --- */}
+      <div className={styles.usernameSection}>
+        <label htmlFor="username">Your Username:</label>
+        <input
+          id="username"
+          ref={usernameInputRef}
+          type="text"
+          value={username}
+          maxLength={20}
+          onChange={e => setUsername(e.target.value)}
+          className={styles.usernameInput}
+          placeholder="Enter your name"
+        />
+      </div>
+      {/* --- END USERNAME INPUT --- */}
+
       <div className={styles.roomCodeContainer}>
         <span className={styles.roomCode}>{roomId}</span>
         <button onClick={handleCopyCode} className={styles.copyButton}>Copy</button>
