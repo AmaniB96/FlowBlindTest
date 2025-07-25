@@ -196,6 +196,15 @@ const useGameStore = create(
         })
       },
 
+      // --- ADD THIS ACTION ---
+      playerAcknowledgeStart: () => {
+        set({ 
+          isReadyForGameStart: true,
+          gameState: 'playing', // This transitions the game to the play screen
+          timeLeft: 30,
+        });
+      },
+
       // Action to cache artist grid data
       setArtistGridData: (data) => set({ artistGridData: data, isArtistGridLoaded: true }),
 
