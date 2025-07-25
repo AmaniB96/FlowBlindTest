@@ -8,16 +8,16 @@ function GamePlayMultiplayer() {
   const {
     currentRound,
     totalRounds,
-    score, // This could be a multiplayer-specific score
+    // score, // <-- We will no longer use the global score here
     timeLeft,
     currentSong,
     userGuess,
-    players, // To display opponent info
-    socket,
+    players, // We will use this to find the correct score
+    socket,  // We need this to identify the current player
     setUserGuess,
     submitMultiplayerGuess,
     resetGame,
-    hasGuessedThisRound, // <-- Get the new state
+    hasGuessedThisRound,
   } = useGameStore()
 
   const audioRef = useRef(null)
@@ -49,6 +49,10 @@ function GamePlayMultiplayer() {
     resetGame();
   }
 
+  // --- FIX: Find the current player's score ---
+  const currentPlayer = players.find(p => p.id === socket?.id);
+  const currentPlayerScore = currentPlayer ? currentPlayer.score : 0;
+
   if (!currentSong) {
     return (
       <div className={styles.loadingContainer}>
@@ -62,9 +66,9 @@ function GamePlayMultiplayer() {
       <div className={styles.header}>
         <button onClick={handleQuit} className={styles.quitButton}>Quit</button>
         <div className={styles.gameInfo}>
-          {/* You can enhance this with opponent's score later */}
           <span className={styles.round}>Round {currentRound} / {totalRounds}</span>
-          <span className={styles.score}>Score: {score}</span>
+          {/* --- FIX: Use the correct score variable --- */}
+          <span className={styles.score}>Score: {currentPlayerScore}</span>
         </div>
         <div className={styles.timer}>
           <span className={styles.timerText}>{timeLeft}s</span>

@@ -9,18 +9,21 @@ function RoundResults() {
   const {
     currentRound,
     totalRounds,
-    score,
     roundResults,
     currentSong,
-    userGuess,
     gameMode,
-    nextRound,
-    signalReadyForNextRound
+    signalReadyForNextRound,
+    players, // <-- Get the players array
+    socket   // <-- Get the socket to find our ID
   } = useGameStore()
 
   const currentResult = roundResults[roundResults.length - 1]
   const isCorrect = currentResult?.correctSong || currentResult?.correctArtist
   const roundScore = currentResult?.score || 0
+
+  // --- FIX: Find the current player's total score ---
+  const currentPlayer = players.find(p => p.id === socket?.id);
+  const currentPlayerTotalScore = currentPlayer ? currentPlayer.score : 0;
 
   const getResultMessage = () => {
     if (!currentResult) return ''
@@ -127,7 +130,8 @@ function RoundResults() {
         <div className={styles.progress}>
           <div className={styles.progressInfo}>
             <span>Round {currentRound} of {totalRounds}</span>
-            <span>Total Score: {score}</span>
+            {/* --- FIX: Use the correct total score variable --- */}
+            <span>Total Score: {currentPlayerTotalScore}</span>
           </div>
           <div className={styles.progressBar}>
             <div 
