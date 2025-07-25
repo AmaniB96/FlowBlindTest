@@ -210,7 +210,6 @@ const useGameStore = create(
           socket.disconnect();
         }
 
-        // Connect to the correct URL (local or production)
         const newSocket = io(SOCKET_URL);
         
         newSocket.on('connect', () => {
@@ -221,27 +220,21 @@ const useGameStore = create(
           set({ players });
         });
 
-        // --- ADD THIS NEW LISTENER ---
-        // Listens for settings updates broadcasted by the server
         newSocket.on('settingsUpdated', ({ category, difficulty }) => {
           console.log('Received settings update from host:', { category, difficulty });
           set({ selectedCategory: category, difficulty });
         });
 
-        // --- REVISED roundOver LISTENER ---
         newSocket.on('roundOver', ({ winnerId, guess, correctSong, correctArtist, players, roundScore }) => {
-          // The server is the source of truth for scores.
-          // We just update our local state to match.
           set(state => ({
-            players: players, // Update the entire player list with correct total scores
+            players: players,
             roundResults: [
               ...state.roundResults,
               {
-                userGuess: guess, // This is the winner's guess, or a generic message
+                userGuess: guess,
                 currentSong: state.currentSong,
-                // --- THE FIX ---
-                pointsAwarded: roundScore || 0, // The value of the round
-                winnerId: winnerId, // Explicitly store who won this round
+                pointsAwarded: roundScore || 0,
+                winnerId: winnerId,
                 correctSong: !!correctSong,
                 correctArtist: !!correctArtist,
               }
@@ -250,15 +243,13 @@ const useGameStore = create(
           }));
         });
 
-        // --- NEW guessResult LISTENER ---
         newSocket.on('guessResult', ({ wasCorrect }) => {
           if (!wasCorrect) {
-            set({ hasGuessedThisRound: true }); // Lock input on wrong guess
+            set({ hasGuessedThisRound: true });
             toast.error("Incorrect. Waiting for opponent...");
           }
         });
 
-        // --- REVISED startNextRound LISTENER ---
         newSocket.on('startNextRound', ({ round }) => {
           const { gameType, multiplayerSongList } = get();
           if (gameType === 'multiplayer') {
@@ -269,34 +260,30 @@ const useGameStore = create(
               currentSong: nextSong,
               userGuess: '',
               timeLeft: 30,
-              hasGuessedThisRound: false, // <-- Reset guess lock for new round
+              hasGuessedThisRound: false,
             });
           }
         });
 
+        // --- THIS IS THE CORRECTED LISTENER ---
         newSocket.on('gameStarted', ({ songs }) => {
-          // This is where you would sync the game start for all players
-          console.log('Game starting with songs:', songs);
-          // Set the full game state needed to begin playing
+          console.log('Game starting, entering ready check state...');
           set({ 
-            gameState: 'playing',
-            roundResults: [], // Clear previous results
+            gameState: 'starting', // <-- THIS IS THE FIX
+            roundResults: [],
             currentRound: 1,
-            score: 0,
-            timeLeft: 30,
-            // The server sends the whole song list, we start with the first one
+            players: get().players.map(p => ({ ...p, score: 0 })), // Reset scores
             currentSong: songs[0], 
-            // You might want to store the full list for subsequent rounds
-            multiplayerSongList: songs 
+            multiplayerSongList: songs,
+            isReadyForGameStart: false, // Ensure this is reset
           });
         });
 
         newSocket.on('playerLeft', () => {
-          toast.error('Your opponent has disconnected. The game has ended.'); // <-- Replaced alert
+          toast.error('Your opponent has disconnected. The game has ended.');
           get().resetGame();
         });
 
-        // --- ADD THIS NEW LISTENER ---
         newSocket.on('gameOver', (data) => {
           set({
             gameState: 'game-over',
@@ -304,7 +291,6 @@ const useGameStore = create(
           });
         });
 
-        // --- ADD THIS NEW LISTENER ---
         newSocket.on('playersUpdated', ({ players }) => {
           set({ players });
         });
