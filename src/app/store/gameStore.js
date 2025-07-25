@@ -226,18 +226,19 @@ const useGameStore = create(
         });
 
         // --- REVISED roundOver LISTENER ---
-        newSocket.on('roundOver', ({ winnerId, guess, correctSong, correctArtist, players }) => {
+        newSocket.on('roundOver', ({ winnerId, guess, correctSong, correctArtist, players, roundScore }) => {
           // The server is the source of truth for scores.
           // We just update our local state to match.
           set(state => ({
-            players: players, // Update the entire player list
+            players: players, // Update the entire player list with correct total scores
             roundResults: [
               ...state.roundResults,
               {
-                userGuess: guess,
+                userGuess: guess, // This is the winner's guess, or a generic message
                 currentSong: state.currentSong,
-                // Score for this round is derived, not added directly
-                score: players.find(p => p.id === winnerId)?.score - (state.players.find(p => p.id === winnerId)?.score || 0),
+                // --- THE FIX ---
+                pointsAwarded: roundScore || 0, // The value of the round
+                winnerId: winnerId, // Explicitly store who won this round
                 correctSong: !!correctSong,
                 correctArtist: !!correctArtist,
               }

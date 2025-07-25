@@ -152,7 +152,8 @@ io.on('connection', (socket) => {
         guess,
         correctSong,
         correctArtist,
-        players: room.players // Send updated player list with new scores
+        players: room.players, // Send updated player list with new scores
+        roundScore: roundScore // <-- THE FIX: Explicitly send the round's score
       });
       room.ready.clear(); // Prepare for next round's ready check
     } else {
@@ -164,7 +165,8 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('roundOver', {
           winnerId: null,
           guess: "No one guessed correctly",
-          players: room.players // Send unchanged player list
+          players: room.players, // Send unchanged player list
+          roundScore: 0 // <-- THE FIX: Send a score of 0
         });
         room.ready.clear();
       }
