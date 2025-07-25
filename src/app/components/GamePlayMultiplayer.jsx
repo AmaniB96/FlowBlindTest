@@ -6,14 +6,14 @@ import styles from './GamePlay.module.css' // We can reuse the same styles for n
 
 function GamePlayMultiplayer() {
   const {
+    gameState, // <-- Get the gameState
     currentRound,
     totalRounds,
-    // score, // <-- We will no longer use the global score here
     timeLeft,
     currentSong,
     userGuess,
-    players, // We will use this to find the correct score
-    socket,  // We need this to identify the current player
+    players,
+    socket,
     setUserGuess,
     submitMultiplayerGuess,
     resetGame,
@@ -23,13 +23,16 @@ function GamePlayMultiplayer() {
   const audioRef = useRef(null)
   const inputRef = useRef(null)
 
-  // In multiplayer, we just play the song when it's provided by the store
+  // --- THE FIX ---
+  // This effect now runs when the component mounts in a 'playing' state,
+  // or when the currentSong changes while already playing.
   useEffect(() => {
-    if (currentSong && audioRef.current) {
+    if (gameState === 'playing' && currentSong && audioRef.current) {
+      audioRef.current.currentTime = 0; // Ensure song starts from the beginning
       audioRef.current.play().catch(e => console.error("Audio play failed:", e));
       inputRef.current?.focus();
     }
-  }, [currentSong]);
+  }, [currentSong, gameState]); // <-- Add gameState to the dependency array
 
   // The timer would ideally be synced from the server, but for now, we can run it client-side
   useEffect(() => {
@@ -49,7 +52,6 @@ function GamePlayMultiplayer() {
     resetGame();
   }
 
-  // --- FIX: Find the current player's score ---
   const currentPlayer = players.find(p => p.id === socket?.id);
   const currentPlayerScore = currentPlayer ? currentPlayer.score : 0;
 
@@ -67,7 +69,6 @@ function GamePlayMultiplayer() {
         <button onClick={handleQuit} className={styles.quitButton}>Quit</button>
         <div className={styles.gameInfo}>
           <span className={styles.round}>Round {currentRound} / {totalRounds}</span>
-          {/* --- FIX: Use the correct score variable --- */}
           <span className={styles.score}>Score: {currentPlayerScore}</span>
         </div>
         <div className={styles.timer}>
@@ -87,7 +88,7 @@ function GamePlayMultiplayer() {
                 onChange={(e) => setUserGuess(e.target.value)}
                 placeholder="Guess the song or artist"
                 className={styles.guessInput}
-                disabled={timeLeft === 0 || hasGuessedThisRound} // <-- DISABLE on guess
+                disabled={timeLeft === 0 || hasGuessedThisRound}
               />
               <button type="submit" className={styles.submitButton} disabled={timeLeft === 0 || hasGuessedThisRound}>
                 Submit

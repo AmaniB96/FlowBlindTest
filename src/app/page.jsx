@@ -9,6 +9,7 @@ import GamePlay from './components/GamePlay'
 import GamePlayMultiplayer from './components/GamePlayMultiplayer'
 import RoundResults from './components/RoundResults'
 import GameOver from './components/GameOver'
+import GameOverMultiplayer from './components/GameOverMultiplayer'
 import Loading from './components/Loading'
 import MultiplayerHome from './components/MultiplayerHome'
 import Lobby from './components/Lobby'
@@ -37,7 +38,7 @@ function Page() {
       case 'waiting-for-opponent':
         return <Loading message="Waiting for opponent..." />
       case 'game-over':
-        return <GameOver />
+        return gameType === 'multiplayer' ? <GameOverMultiplayer /> : <GameOver />
       case 'multiplayer-home':
         return <MultiplayerHome />
       case 'lobby':
