@@ -69,17 +69,85 @@ io.on('connection', (socket) => {
     console.log(`Game started in room ${roomId}`);
   });
 
-  socket.on('submitGuess', ({ roomId, guess, song, playerTime }) => {
-    const isCorrect = guess.toLowerCase() === song.title.toLowerCase();
+  // Add these helper functions at the top of your file:
+  function normalize(str) {
+    return str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .replace(/[^a-z0-9 ]/g, '') // Remove special chars
+      .trim();
+  }
 
-    if (isCorrect) {
-      // When a round ends, clear the ready status for the next round
-      if (rooms[roomId]) {
-        rooms[roomId].ready.clear();
+  function levenshtein(a, b) {
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
       }
-      io.to(roomId).emit('roundOver', { winnerId: socket.id, guess, time: playerTime });
-      console.log(`Round won by ${socket.id} in room ${roomId}`);
     }
+    return matrix[b.length][a.length];
+  }
+
+  // Replace your submitGuess handler with:
+  socket.on('submitGuess', ({ roomId, guess, song, playerTime, gameMode = 'both' }) => {
+    if (!song || !guess) return;
+
+    const typoThreshold = (answer) => answer.length <= 6 ? 2 : 3;
+    const userGuess = normalize(guess);
+    const artistName = normalize(song.artist?.name || '');
+    const songTitle = normalize(song.title || '');
+
+    let roundScore = 0;
+    let correctSong = false;
+    let correctArtist = false;
+
+    if (gameMode === 'both') {
+      if (levenshtein(userGuess, songTitle) <= typoThreshold(songTitle)) {
+        roundScore += 5;
+        correctSong = true;
+      }
+      if (levenshtein(userGuess, artistName) <= typoThreshold(artistName)) {
+        roundScore += 5;
+        correctArtist = true;
+      }
+    } else if (gameMode === 'song') {
+      if (levenshtein(userGuess, songTitle) <= typoThreshold(songTitle) || userGuess.includes(songTitle)) {
+        roundScore += 10;
+        correctSong = true;
+      }
+    } else if (gameMode === 'artist') {
+      if (levenshtein(userGuess, artistName) <= typoThreshold(artistName) || userGuess.includes(artistName)) {
+        roundScore += 10;
+        correctArtist = true;
+      }
+    }
+
+    // Always emit roundOver so the UI updates, even if score is 0
+    if (rooms[roomId]) {
+      rooms[roomId].ready.clear();
+    }
+    io.to(roomId).emit('roundOver', {
+      winnerId: roundScore > 0 ? socket.id : null,
+      guess,
+      time: playerTime,
+      correctSong,
+      correctArtist,
+      score: roundScore
+    });
+    console.log(`Round over for ${socket.id} in room ${roomId}. Score: ${roundScore}`);
   });
 
   // --- ADD THIS NEW EVENT HANDLER ---

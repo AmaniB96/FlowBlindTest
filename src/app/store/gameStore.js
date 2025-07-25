@@ -245,10 +245,22 @@ const useGameStore = create(
           });
         });
 
-        newSocket.on('roundOver', ({ winnerId, guess, time }) => {
-          // This is where you handle the round end for all players
-          console.log(`Round over. Winner is ${winnerId}`);
-          set({ gameState: 'results' });
+        newSocket.on('roundOver', ({ winnerId, guess, time, correctSong, correctArtist, score }) => {
+          // Add to roundResults, update score, etc.
+          set(state => ({
+            roundResults: [
+              ...state.roundResults,
+              {
+                userGuess: guess,
+                currentSong: state.currentSong,
+                score: score || 0,
+                correctSong: !!correctSong,
+                correctArtist: !!correctArtist,
+              }
+            ],
+            score: (state.score || 0) + (score || 0),
+            gameState: 'results'
+          }));
         });
 
         newSocket.on('playerLeft', () => {
@@ -360,6 +372,18 @@ const useGameStore = create(
           // Existing solo logic
           // ...
         }
+      },
+      
+      submitMultiplayerGuess: () => {
+        const { userGuess, currentSong, socket, roomId, timeLeft } = get();
+        if (!userGuess.trim() || !currentSong || !socket || !roomId) return;
+        socket.emit('submitGuess', {
+          roomId,
+          guess: userGuess,
+          song: currentSong,
+          playerTime: timeLeft,
+        });
+        set({ userGuess: '' }); // Clear input after submitting
       },
       
       // ... (rest of the store) ...

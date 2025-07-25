@@ -15,7 +15,7 @@ function GamePlayMultiplayer() {
     players, // To display opponent info
     socket,
     setUserGuess,
-    submitGuess,
+    submitMultiplayerGuess,
     resetGame
   } = useGameStore()
 
@@ -38,8 +38,7 @@ function GamePlayMultiplayer() {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (userGuess.trim()) {
-      // This already correctly sends the guess to the server because of our previous fix
-      submitGuess()
+      submitMultiplayerGuess()
       setUserGuess('') // Clear input after submitting
     }
   }
